@@ -5,7 +5,6 @@ using Coginov.GraphApi.Library.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Identity.Client;
-using Microsoft.Identity.Client.Extensions.Msal;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -20,7 +19,7 @@ using System.Threading.Tasks;
 
 namespace Coginov.GraphApi.Library.Services
 {
-    public class GraphApiService : IGraphApiService, IDisposable
+    public class GraphApiService : IGraphApiService
     {
         private const long DEFAULT_CHUNK_SIZE = 1024 * 1024 * 1024; // 1 GB
         private const int DEFAULT_RETRY_IN_SECONDS = 1;
@@ -32,25 +31,10 @@ namespace Coginov.GraphApi.Library.Services
         private DriveConnectionType connectionType;
         private string userId;
         private string siteId;
-        private AuthenticationToken authenticationToken;
-        private string msalCachePath;
-        private string msalCacheFileName;
-        private MsalCacheHelper msalCacheHelper;
-        private IPublicClientApplication pca;
-        private IConfidentialClientApplication cca; 
 
         public GraphApiService(ILogger logger)
         {
             this.logger = logger;
-        }
-
-        public void Dispose()
-        {
-            if (msalCacheHelper != null)
-            {
-                msalCacheHelper.UnregisterCache(pca.UserTokenCache);
-                System.IO.File.Delete(Path.Combine(msalCachePath, msalCacheFileName));
-            }
         }
 
         public async Task<bool> InitializeSharePointConnection(AuthenticationConfig authenticationConfig, string siteRoot, params string[] docLibraries)
@@ -652,9 +636,11 @@ namespace Coginov.GraphApi.Library.Services
 
         private async Task<bool> InitializeAppPermissions()
         {
+            IConfidentialClientApplication app;
+
             if (UseClientSecret())
             {
-                cca = ConfidentialClientApplicationBuilder.Create(authConfig.ClientId)
+                app = ConfidentialClientApplicationBuilder.Create(authConfig.ClientId)
                     .WithClientSecret(authConfig.ClientSecret)
                     .WithAuthority(new Uri(authConfig.Authority))
                     .Build();
@@ -662,7 +648,7 @@ namespace Coginov.GraphApi.Library.Services
             else
             {
                 X509Certificate2 certificate = ReadCertificate(authConfig.CertificateName);
-                cca = ConfidentialClientApplicationBuilder.Create(authConfig.ClientId)
+                app = ConfidentialClientApplicationBuilder.Create(authConfig.ClientId)
                     .WithCertificate(certificate)
                     .WithAuthority(new Uri(authConfig.Authority))
                     .Build();
@@ -678,7 +664,7 @@ namespace Coginov.GraphApi.Library.Services
                 graphServiceClient =
                     new GraphServiceClient(new DelegateAuthenticationProvider(async (requestMessage) => {
                     // Retrieve an access token for Microsoft Graph (gets a fresh token if needed).
-                    var authResult = await cca.AcquireTokenForClient(scopes).ExecuteAsync();
+                    var authResult = await app.AcquireTokenForClient(scopes).ExecuteAsync();
 
                     // Add the access token in the Authorization header of the API request.
                     requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
@@ -706,20 +692,9 @@ namespace Coginov.GraphApi.Library.Services
                     RedirectUri = "http://localhost"
                 };
 
-                msalCachePath = $"{authConfig.TokenPath ?? "C:\\Temp"}\\MsalCache";
-                msalCacheFileName = $"MSALCache-{Guid.NewGuid()}.plaintext";
-                System.IO.Directory.CreateDirectory(Path.GetDirectoryName(msalCachePath));
-
-                var storageProperties = new StorageCreationPropertiesBuilder(msalCacheFileName, msalCachePath)
-                                            .WithUnprotectedFile()
-                                            .Build();
-
-                pca = PublicClientApplicationBuilder
-                        .CreateWithApplicationOptions(pcaOptions)
-                        .Build();
-
-                msalCacheHelper = await MsalCacheHelper.CreateAsync(storageProperties);
-                msalCacheHelper.RegisterCache(pca.UserTokenCache);
+                var pca = PublicClientApplicationBuilder
+                    .CreateWithApplicationOptions(pcaOptions)
+                    .Build();
 
                 // The permission scopes required
                 var graphScopes = new string[] { 
@@ -734,16 +709,11 @@ namespace Coginov.GraphApi.Library.Services
                 graphServiceClient =
                     new GraphServiceClient(new DelegateAuthenticationProvider(async (requestMessage) =>
                     {
-                        if (TokenHelper.IsTokenCloseToExpiration(authResult.AccessToken)) 
+                        await Task.Run(() =>
                         {
-                            var accounts = await pca.GetAccountsAsync();
-                            authResult = await pca.AcquireTokenSilent(graphScopes, accounts.FirstOrDefault())
-                                                .WithForceRefresh(true)
-                                                .ExecuteAsync();
-                        }
-
-                        // Add the access token in the Authorization header of the API request.
-                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                            // Add the access token in the Authorization header of the API request.
+                            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                        });
                     }));
             }
             catch(Exception ex)
@@ -757,8 +727,7 @@ namespace Coginov.GraphApi.Library.Services
 
         private async Task<bool> InitializeUsingAccessToken()
         {
-            authenticationToken = TokenHelper.InitializeFromTokenPath(authConfig);
-            if (authenticationToken == null) return false;
+            TokenHelper.Initialize(authConfig.TokenPath, authConfig.Tenant, authConfig.ClientId);
 
             try
             {
@@ -767,11 +736,11 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         await Task.Run(async () =>
                         {
-                            authenticationToken = await TokenHelper.GetValidToken(authenticationToken, authConfig);
-                            if (authenticationToken != null)
+                            var accessToken = await TokenHelper.GetValidToken();
+                            if (accessToken != null)
                             {
                                 // Add the access token in the Authorization header of the API request.
-                                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authenticationToken.Access_Token);
+                                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                             }
                             else
                             {

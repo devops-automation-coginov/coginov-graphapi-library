@@ -12,42 +12,52 @@ namespace Coginov.GraphApi.Library.Helpers
 
     public static class TokenHelper
     {
-        public static AuthenticationToken InitializeFromTokenPath(AuthenticationConfig config)
+        private static AuthenticationToken Token;
+        private static string TokenPath;
+        private static string TenantId;
+        private static string ClientId;
+
+        public static bool Initialize(string tokenPath, string tenantId, string clientId)
         {
             try
             {
-                var jsonText = File.ReadAllText(config.TokenPath);
-                if (string.IsNullOrWhiteSpace(jsonText)) return null;
+                var jsonText = File.ReadAllText(tokenPath);
+                if (string.IsNullOrWhiteSpace(jsonText)) return false;
                 
-                return JsonConvert.DeserializeObject<AuthenticationToken>(jsonText);
+                Token = JsonConvert.DeserializeObject<AuthenticationToken>(jsonText);
+                TokenPath = tokenPath;
+                TenantId = tenantId;
+                ClientId = clientId;
+                
+                return true;
             }
             catch (Exception)
             {
-                return null;
+                return false;
             }
         }
 
-        public static async Task<AuthenticationToken> GetValidToken(AuthenticationToken token, AuthenticationConfig config, int timeInMinutes = 30)
+        public static async Task<string> GetValidToken()
         {
-            var jwtToken = new JwtSecurityToken(token.Access_Token);
+            var jwtToken = new JwtSecurityToken(Token.Access_Token);
             TimeSpan dateDiff = jwtToken.ValidTo - DateTime.UtcNow;
-            if (dateDiff.TotalMinutes < timeInMinutes)
+            if (dateDiff.TotalMinutes < 30)
             {
-                token = await RefreshToken(token, config);
+                if (!await RefreshToken()) return null;
             }
-            return token;
+            return jwtToken.RawData;
         }
 
-        private static async Task<AuthenticationToken> RefreshToken(AuthenticationToken token, AuthenticationConfig config)
+        private static async Task<bool> RefreshToken()
         {
             try
             {
-                string refreshUrl = $"https://login.microsoftonline.com/{config.Tenant}/oauth2/v2.0/token";
+                string refreshUrl = $"https://login.microsoftonline.com/{TenantId}/oauth2/v2.0/token";
                 Dictionary<string, string> data = new Dictionary<string, string>
             {
                 { "grant_type", "refresh_token" },
-                { "client_id", config.ClientId },
-                { "refresh_token", token.Refresh_Token }
+                { "client_id", ClientId },
+                { "refresh_token", Token.Refresh_Token }
             };
 
                 using var httpClient = new HttpClient();
@@ -55,27 +65,16 @@ namespace Coginov.GraphApi.Library.Helpers
 
                 var result = await response.Content.ReadAsStringAsync();
 
-                token = JsonConvert.DeserializeObject<AuthenticationToken>(result);
+                Token = JsonConvert.DeserializeObject<AuthenticationToken>(result);
 
-                File.WriteAllText(config.TokenPath, result);
+                File.WriteAllText(TokenPath, result);
 
-                return token;
+                return true;
             }
             catch (Exception)
             {
-                return null;
+                return false;
             }
-        }
-
-        public static bool IsTokenCloseToExpiration(string token, int timeInMinutes = 10)
-        {
-            var jwtToken = new JwtSecurityToken(token);
-            TimeSpan dateDiff = jwtToken.ValidTo - DateTime.UtcNow;
-            if (dateDiff.TotalMinutes < timeInMinutes)
-            {
-                return true;
-            }
-            return false;
         }
     }
 }
