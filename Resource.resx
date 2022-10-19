@@ -120,6 +120,24 @@
   <data name="CannotAccessDrive" xml:space="preserve">
     <value>Cannot access drive for</value>
   </data>
+  <data name="CannotGetJwtToken" xml:space="preserve">
+    <value>Cannot get a valid JWT to process the request</value>
+  </data>
+  <data name="CannotGetRefreshToken" xml:space="preserve">
+    <value>Cannot retrieve a refresh token</value>
+  </data>
+  <data name="CannotReadTokenFile" xml:space="preserve">
+    <value>Cannot read token from file</value>
+  </data>
+  <data name="CannotSaveToken" xml:space="preserve">
+    <value>Cannot save encrytoped token to file system</value>
+  </data>
+  <data name="CertificateEmpty" xml:space="preserve">
+    <value>certificateName should not be empty. Please set the CertificateName setting in the appsettings.json</value>
+  </data>
+  <data name="ChooseClientOrCertificate" xml:space="preserve">
+    <value>You must choose between using client secret or certificate. Please update appsettings.json file.</value>
+  </data>
   <data name="ErrorInitializingGraph" xml:space="preserve">
     <value>Error Initializing Microsoft Graph client</value>
   </data>
@@ -167,5 +185,8 @@
   </data>
   <data name="NoLibraryFound" xml:space="preserve">
     <value>Specified libraries not found, selecting all Document Libraries as default</value>
+  </data>
+  <data name="TokenUnencrypted" xml:space="preserve">
+    <value>Cannot retrieve encrypted token, token may be unencrypted</value>
   </data>
 </root>
