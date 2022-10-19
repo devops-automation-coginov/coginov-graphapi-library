@@ -70,6 +70,60 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Cannot get a valid JWT to process the request.
+        /// </summary>
+        internal static string CannotGetJwtToken {
+            get {
+                return ResourceManager.GetString("CannotGetJwtToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot retrieve a refresh token.
+        /// </summary>
+        internal static string CannotGetRefreshToken {
+            get {
+                return ResourceManager.GetString("CannotGetRefreshToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot read token from file.
+        /// </summary>
+        internal static string CannotReadTokenFile {
+            get {
+                return ResourceManager.GetString("CannotReadTokenFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot save encrytoped token to file system.
+        /// </summary>
+        internal static string CannotSaveToken {
+            get {
+                return ResourceManager.GetString("CannotSaveToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to certificateName should not be empty. Please set the CertificateName setting in the appsettings.json.
+        /// </summary>
+        internal static string CertificateEmpty {
+            get {
+                return ResourceManager.GetString("CertificateEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You must choose between using client secret or certificate. Please update appsettings.json file..
+        /// </summary>
+        internal static string ChooseClientOrCertificate {
+            get {
+                return ResourceManager.GetString("ChooseClientOrCertificate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error Initializing Microsoft Graph client.
         /// </summary>
         internal static string ErrorInitializingGraph {
@@ -210,6 +264,15 @@ namespace Coginov.GraphApi.Library {
         internal static string NoLibraryFound {
             get {
                 return ResourceManager.GetString("NoLibraryFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot retrieve encrypted token, token may be unencrypted.
+        /// </summary>
+        internal static string TokenUnencrypted {
+            get {
+                return ResourceManager.GetString("TokenUnencrypted", resourceCulture);
             }
         }
     }

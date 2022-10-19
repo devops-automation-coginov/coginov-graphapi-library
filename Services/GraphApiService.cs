@@ -13,10 +13,11 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using SystemFile = System.IO.File;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -734,7 +735,7 @@ namespace Coginov.GraphApi.Library.Services
                 graphServiceClient =
                     new GraphServiceClient(new DelegateAuthenticationProvider(async (requestMessage) =>
                     {
-                        if (TokenHelper.IsTokenCloseToExpiration(authResult.AccessToken)) 
+                        if (IsTokenCloseToExpiration(authResult.AccessToken)) 
                         {
                             var accounts = await pca.GetAccountsAsync();
                             authResult = await pca.AcquireTokenSilent(graphScopes, accounts.FirstOrDefault())
@@ -757,7 +758,7 @@ namespace Coginov.GraphApi.Library.Services
 
         private async Task<bool> InitializeUsingAccessToken()
         {
-            authenticationToken = TokenHelper.InitializeFromTokenPath(authConfig);
+            authenticationToken = InitializeFromTokenPath();
             if (authenticationToken == null) return false;
 
             try
@@ -767,7 +768,7 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         await Task.Run(async () =>
                         {
-                            authenticationToken = await TokenHelper.GetValidToken(authenticationToken, authConfig);
+                            await GetValidToken();
                             if (authenticationToken != null)
                             {
                                 // Add the access token in the Authorization header of the API request.
@@ -775,7 +776,7 @@ namespace Coginov.GraphApi.Library.Services
                             }
                             else
                             {
-                                logger.LogError("Cannot get a valid JWT to process the request");
+                                logger.LogError(Resource.CannotGetJwtToken);
                             }
                         });
                     }));
@@ -864,7 +865,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             else
             {
-                throw new Exception("You must choose between using client secret or certificate. Please update appsettings.json file.");
+                throw new Exception(Resource.ChooseClientOrCertificate);
             }
         }
 
@@ -872,7 +873,7 @@ namespace Coginov.GraphApi.Library.Services
         {
             if (string.IsNullOrWhiteSpace(certificateName))
             {
-                throw new ArgumentException("certificateName should not be empty. Please set the CertificateName setting in the appsettings.json", "certificateName");
+                throw new ArgumentException(Resource.CertificateEmpty, nameof(certificateName));
             }
 
             var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
@@ -894,6 +895,111 @@ namespace Coginov.GraphApi.Library.Services
                 default:
                     return 1;
             }
+        }
+
+        private AuthenticationToken InitializeFromTokenPath()
+        {
+            if (!SystemFile.Exists(authConfig.TokenPath)) return null;
+
+            string tokenString;
+            AuthenticationToken token;
+            try
+            {
+                tokenString = SystemFile.ReadAllText(authConfig.TokenPath);
+                if (string.IsNullOrWhiteSpace(tokenString)) return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.CannotReadTokenFile}: {ex.Message}. {ex.InnerException?.Message}");
+                return null;
+            }
+
+            try
+            {
+                var uncryptedToken = AesHelper.DecryptToString(tokenString);
+                return GetTokenFromString(uncryptedToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"{Resource.TokenUnencrypted}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
+
+            try
+            {
+                token = GetTokenFromString(tokenString);
+                if (token != null)
+                {
+                    SystemFile.WriteAllText(authConfig.TokenPath, AesHelper.EncryptToString(tokenString));
+                }
+                return token;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"{Resource.CannotSaveToken}: {ex.Message}. {ex.InnerException?.Message}");
+                return null;
+            }
+        }
+
+        private static AuthenticationToken GetTokenFromString(string token)
+        {
+            try
+            {
+                return JsonConvert.DeserializeObject<AuthenticationToken>(token);
+            }
+            catch
+            {
+                //Invalid token format
+                return null;
+            }
+        }
+
+        private async Task GetValidToken(int timeInMinutes = 30)
+        {
+            var jwtToken = new JwtSecurityToken(authenticationToken.Access_Token);
+            TimeSpan dateDiff = jwtToken.ValidTo - DateTime.UtcNow;
+            if (dateDiff.TotalMinutes < timeInMinutes)
+            {
+                await RefreshToken();
+            }
+        }
+
+        private async Task RefreshToken()
+        {
+            try
+            {
+                string refreshUrl = $"https://login.microsoftonline.com/{authConfig.Tenant}/oauth2/v2.0/token";
+                Dictionary<string, string> data = new Dictionary<string, string>
+                {
+                    { "grant_type", "refresh_token" },
+                    { "client_id", authConfig.ClientId },
+                    { "refresh_token", authenticationToken.Refresh_Token }
+                };
+
+                using var httpClient = new HttpClient();
+                var response = await httpClient.PostAsync(refreshUrl, new FormUrlEncodedContent(data));
+
+                var result = await response.Content.ReadAsStringAsync();
+
+                authenticationToken = JsonConvert.DeserializeObject<AuthenticationToken>(result);
+
+                SystemFile.WriteAllText(authConfig.TokenPath, AesHelper.EncryptToString(result));
+            }
+            catch (Exception)
+            {
+                logger.LogError(Resource.CannotGetRefreshToken);
+            }
+        }
+
+        public static bool IsTokenCloseToExpiration(string token, int timeInMinutes = 10)
+        {
+            var jwtToken = new JwtSecurityToken(token);
+            TimeSpan dateDiff = jwtToken.ValidTo - DateTime.UtcNow;
+            if (dateDiff.TotalMinutes < timeInMinutes)
+            {
+                return true;
+            }
+            return false;
         }
 
         #endregion
