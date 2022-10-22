@@ -17,7 +17,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken);
         Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation);
         Task<IUserMessagesCollectionPage> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false);
-        Task<IMailFolderMessagesCollectionPage> GetEmailsFromFolderAfterDate(string userAccount, string Folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false);
+        Task<IMailFolderMessagesCollectionPage> GetEmailsFromFolderAfterDate(string userAccount, string Folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false);
         Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName);
         Task<MailFolder> GetEmailFolderById(string userAccount, string folderId);
         Task<List<MailFolder>> GetEmailFolders(string userAccount);

@@ -562,7 +562,7 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<IMailFolderMessagesCollectionPage> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false)
+        public async Task<IMailFolderMessagesCollectionPage> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false)
         {
             var retryCount = DEFAULT_RETRY_COUNT;
             var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
@@ -571,10 +571,15 @@ namespace Coginov.GraphApi.Library.Services
             {
                 try
                 {
-                    return await graphServiceClient.Users[userAccount].MailFolders[folder].Messages.Request()
-                                                .Filter(filter).Skip(skipIndex).Top(emailCount)
-                                                .OrderBy("createdDateTime").Expand(includeAttachments ? "attachments" : "")
-                                                .GetAsync();
+                    var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages.Request();
+                    if (preferText)
+                    {
+                        graphRequest = graphRequest.Header("Prefer", "outlook.body-content-type=\"text\"");
+                    }
+
+                    return await  graphRequest.Filter(filter).Skip(skipIndex).Top(emailCount)
+                                              .OrderBy("createdDateTime").Expand(includeAttachments ? "attachments" : "")
+                                              .GetAsync();
                 }
                 catch (ServiceException ex)
                 {
