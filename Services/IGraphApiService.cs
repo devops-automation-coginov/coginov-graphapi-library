@@ -21,5 +21,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName);
         Task<MailFolder> GetEmailFolderById(string userAccount, string folderId);
         Task<List<MailFolder>> GetEmailFolders(string userAccount);
+        Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount);
+        Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder);
     }
 }
