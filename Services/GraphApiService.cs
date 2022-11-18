@@ -372,7 +372,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     var driveItemResult = new DriveItemSearchResult
                     {
-                        DocumentIds = new List<string>(),
+                        DocumentIds = new List<DriveItem>(),
                         HasMoreResults = searchCollection.NextPageRequest != null,
                         SkipToken = searchCollection.NextPageRequest != null
                             ? searchCollection.NextPageRequest.QueryOptions.FirstOrDefault(x => x.Name == "$skiptoken").Value
@@ -394,7 +394,7 @@ namespace Coginov.GraphApi.Library.Services
                             continue;
                         }
 
-                        driveItemResult.DocumentIds.Add(searchResult.Id);
+                        driveItemResult.DocumentIds.Add(searchResult);
                     }
 
                     return driveItemResult;
