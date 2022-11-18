@@ -138,6 +138,9 @@
   <data name="ChooseClientOrCertificate" xml:space="preserve">
     <value>You must choose between using client secret or certificate. Please update appsettings.json file.</value>
   </data>
+  <data name="ErrorForwardingEmail" xml:space="preserve">
+    <value>Error forwarding email to recipient</value>
+  </data>
   <data name="ErrorInitializingGraph" xml:space="preserve">
     <value>Error Initializing Microsoft Graph client</value>
   </data>
@@ -149,6 +152,9 @@
   </data>
   <data name="ErrorInitializingTeamsConnection" xml:space="preserve">
     <value>Error initializing MS Teams connection</value>
+  </data>
+  <data name="ErrorMovingEmail" xml:space="preserve">
+    <value>Error moving email to folder</value>
   </data>
   <data name="ErrorRetrievingDocumentIds" xml:space="preserve">
     <value>Error retrieving Document Ids</value>

@@ -636,6 +636,73 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        public async Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount)
+        {
+            var retryCount = DEFAULT_RETRY_COUNT;
+            var forwardToRecipient = new List<Recipient>{   
+                new Recipient
+                {
+                    EmailAddress = new EmailAddress
+                    {
+                        Name = forwardAccount,
+                        Address = forwardAccount
+                    }
+                }
+            };
+
+            while (retryCount-- > 0)
+            {
+                try
+                {
+                    await graphServiceClient.Users[userAccount].Messages[emailId]
+                            .Forward(forwardToRecipient)
+                            .Request()
+                            .PostAsync();
+                    return true;
+                }
+                catch (ServiceException ex)
+                {
+                    var retryInSeconds = GetRetryAfterSeconds(ex);
+                    logger.LogError($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    Thread.Sleep(retryInSeconds * 1000);
+                }
+            }
+            return false;
+        }
+
+        public async Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder)
+        {
+            var retryCount = DEFAULT_RETRY_COUNT;
+
+            while (retryCount-- > 0)
+            {
+                try
+                {
+                    var folder = (await GetEmailFolders(userAccount)).FirstOrDefault(x => x.DisplayName.Equals(newFolder, StringComparison.InvariantCultureIgnoreCase));
+
+                    if (folder == null)
+                    {
+                        return false;
+                    }
+
+                    await graphServiceClient.Users[userAccount].Messages[emailId]
+                            .Move(folder.Id)
+                            .Request()
+                            .PostAsync();
+                    return true;
+                }
+                catch (ServiceException ex)
+                {
+                    var retryInSeconds = GetRetryAfterSeconds(ex);
+                    logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    Thread.Sleep(retryInSeconds * 1000);
+                }
+            }
+            return false;
+        }
+
         #endregion
 
         #region Private Methods

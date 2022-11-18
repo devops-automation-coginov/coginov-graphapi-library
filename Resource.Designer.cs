@@ -124,6 +124,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error forwarding email to recipient.
+        /// </summary>
+        internal static string ErrorForwardingEmail {
+            get {
+                return ResourceManager.GetString("ErrorForwardingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error Initializing Microsoft Graph client.
         /// </summary>
         internal static string ErrorInitializingGraph {
@@ -156,6 +165,15 @@ namespace Coginov.GraphApi.Library {
         internal static string ErrorInitializingTeamsConnection {
             get {
                 return ResourceManager.GetString("ErrorInitializingTeamsConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error moving email to folder.
+        /// </summary>
+        internal static string ErrorMovingEmail {
+            get {
+                return ResourceManager.GetString("ErrorMovingEmail", resourceCulture);
             }
         }
         
