@@ -96,6 +96,7 @@ namespace Coginov.GraphApi.Library.Services
             {
                 connectionType = DriveConnectionType.OneDriveConnection;
                 userId = await GetUserId(user);
+                drivesConnectionInfo?.Clear();
                 await GetDrives(root: user);
             }
             catch (Exception ex)
@@ -179,7 +180,7 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<List<DriveConnectionInfo>> GetDrives(string[]? drives = null, string root = "")
         {
-            if (drivesConnectionInfo != null)
+            if (drivesConnectionInfo != null && drivesConnectionInfo.Any())
             {
                 return drivesConnectionInfo;
             }
@@ -372,7 +373,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     var driveItemResult = new DriveItemSearchResult
                     {
-                        DocumentIds = new List<string>(),
+                        DocumentIds = new List<DriveItem>(),
                         HasMoreResults = searchCollection.NextPageRequest != null,
                         SkipToken = searchCollection.NextPageRequest != null
                             ? searchCollection.NextPageRequest.QueryOptions.FirstOrDefault(x => x.Name == "$skiptoken").Value
@@ -394,7 +395,7 @@ namespace Coginov.GraphApi.Library.Services
                             continue;
                         }
 
-                        driveItemResult.DocumentIds.Add(searchResult.Id);
+                        driveItemResult.DocumentIds.Add(searchResult);
                     }
 
                     return driveItemResult;
@@ -800,6 +801,7 @@ namespace Coginov.GraphApi.Library.Services
                     "https://graph.microsoft.com/Group.Read.All",
                     "https://graph.microsoft.com/Sites.Read.All",
                     "https://graph.microsoft.com/User.Read.All",
+                    "https://graph.microsoft.com/Mail.Read.Shared"
                 };
 
                 var authResult = await pca.AcquireTokenInteractive(graphScopes).ExecuteAsync();
