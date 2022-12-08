@@ -1,0 +1,198 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="CannotAccessDrive" xml:space="preserve">
+    <value>Cannot access drive for</value>
+  </data>
+  <data name="CannotGetJwtToken" xml:space="preserve">
+    <value>Cannot get a valid JWT to process the request</value>
+  </data>
+  <data name="CannotGetRefreshToken" xml:space="preserve">
+    <value>Cannot retrieve a refresh token</value>
+  </data>
+  <data name="CannotReadTokenFile" xml:space="preserve">
+    <value>Cannot read token from file</value>
+  </data>
+  <data name="CannotSaveToken" xml:space="preserve">
+    <value>Cannot save encrytoped token to file system</value>
+  </data>
+  <data name="CertificateEmpty" xml:space="preserve">
+    <value>certificateName should not be empty. Please set the CertificateName setting in the appsettings.json</value>
+  </data>
+  <data name="ChooseClientOrCertificate" xml:space="preserve">
+    <value>You must choose between using client secret or certificate. Please update appsettings.json file.</value>
+  </data>
+  <data name="ErrorForwardingEmail" xml:space="preserve">
+    <value>Error forwarding email to recipient</value>
+  </data>
+  <data name="ErrorInitializingGraph" xml:space="preserve">
+    <value>Error Initializing Microsoft Graph client</value>
+  </data>
+  <data name="ErrorInitializingODConnection" xml:space="preserve">
+    <value>Error initializing OneDrive connection</value>
+  </data>
+  <data name="ErrorInitializingSPConnection" xml:space="preserve">
+    <value>Error initializing Sharepoint connection</value>
+  </data>
+  <data name="ErrorInitializingTeamsConnection" xml:space="preserve">
+    <value>Error initializing MS Teams connection</value>
+  </data>
+  <data name="ErrorMovingEmail" xml:space="preserve">
+    <value>Error moving email to folder</value>
+  </data>
+  <data name="ErrorRetrievingDocumentIds" xml:space="preserve">
+    <value>Error retrieving Document Ids</value>
+  </data>
+  <data name="ErrorRetrievingDriveItem" xml:space="preserve">
+    <value>Error retrieving Drive Item</value>
+  </data>
+  <data name="ErrorRetrievingDrives" xml:space="preserve">
+    <value>Error retrieving Drives</value>
+  </data>
+  <data name="ErrorRetrievingExchangeFolders" xml:space="preserve">
+    <value>Error retrieving account folders from Exchange</value>
+  </data>
+  <data name="ErrorRetrievingExchangeMessages" xml:space="preserve">
+    <value>Error retrieving messages from Exchange</value>
+  </data>
+  <data name="ErrorRetrievingSiteId" xml:space="preserve">
+    <value>Error retrieving Site Id</value>
+  </data>
+  <data name="ErrorRetrievingUserId" xml:space="preserve">
+    <value>Error retrieving User Id</value>
+  </data>
+  <data name="ErrorSavingDriveItem" xml:space="preserve">
+    <value>Error saving Drive Item to file system</value>
+  </data>
+  <data name="ErrorSavingExchangeMessage" xml:space="preserve">
+    <value>Error saving Exchange message to file system</value>
+  </data>
+  <data name="GraphRetryAttempts" xml:space="preserve">
+    <value>Retrying in {0} seconds. Attepmt: {1}</value>
+  </data>
+  <data name="LibraryNotFound" xml:space="preserve">
+    <value>Specified document library not found</value>
+  </data>
+  <data name="NoLibraryFound" xml:space="preserve">
+    <value>Specified libraries not found, selecting all Document Libraries as default</value>
+  </data>
+  <data name="TokenUnencrypted" xml:space="preserve">
+    <value>Cannot retrieve encrypted token, token may be unencrypted</value>
+  </data>
+</root>
