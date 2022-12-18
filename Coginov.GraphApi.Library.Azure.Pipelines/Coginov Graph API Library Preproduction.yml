@@ -23,6 +23,8 @@ jobs:
       versionSpec: 6.1.0
   - task: NuGetCommand@2
     displayName: NuGet restore
+    inputs:
+      solution: '**/*.csproj'
   - task: PowerShell@2
     displayName: Get Version From File in Gitlab
     inputs:
@@ -30,11 +32,12 @@ jobs:
   - task: VSBuild@1
     displayName: Build Coginov GraphApi Library
     inputs:
-      msbuildArgs: /p:Version=$(buildNumber)
+      msbuildArgs: /t:pack /p:Version=$(buildNumber)
   - task: NuGetCommand@2
     displayName: NuGet pack for Coginov GraphApi Library
     inputs:
       command: pack
+      searchPatternPack: '**/*.csproj; **/*.nuspec'
       versioningScheme: byEnvVar
       versionEnvVar: buildNumber
   - task: PublishBuildArtifacts@1
