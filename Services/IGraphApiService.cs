@@ -23,5 +23,6 @@ namespace Coginov.GraphApi.Library.Services
         Task<List<MailFolder>> GetEmailFolders(string userAccount);
         Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount);
         Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder);
+        Task<bool> SendEmail(string fromAccount, string toAccounts, string subject, string body, List<Attachment> attachments = null);
     }
 }
