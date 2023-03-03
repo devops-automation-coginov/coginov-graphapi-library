@@ -259,6 +259,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error sending email to recipient.
+        /// </summary>
+        internal static string ErrorSendingEmail {
+            get {
+                return ResourceManager.GetString("ErrorSendingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Retrying in {0} seconds. Attepmt: {1}.
         /// </summary>
         internal static string GraphRetryAttempts {

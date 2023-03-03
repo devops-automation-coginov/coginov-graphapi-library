@@ -672,6 +672,45 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        public async Task<bool> SendEmail(string fromAccount, string toAccounts, string subject, string body, List<Attachment> attachments = null)
+        {
+            var attachmentsCollection = new MessageAttachmentsCollectionPage();
+            attachments?.ForEach(x => attachmentsCollection.Add(x));
+
+            var retryCount = DEFAULT_RETRY_COUNT;
+            var message = new Message
+            {
+                Subject = subject,
+                Body = new ItemBody
+                {
+                    ContentType = BodyType.Text,
+                    Content = body
+                },
+                ToRecipients = toAccounts.ParseRecipients(),
+                Attachments= attachmentsCollection
+            };
+
+            while (retryCount-- > 0)
+            {
+                try
+                {
+                    await graphServiceClient.Users[fromAccount]
+                            .SendMail(message, true)
+                            .Request()
+                            .PostAsync();
+                    return true;
+                }
+                catch (ServiceException ex)
+                {
+                    var retryInSeconds = GetRetryAfterSeconds(ex);
+                    logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    Thread.Sleep(retryInSeconds * 1000);
+                }
+            }
+            return false;
+        }
+
         public async Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder)
         {
             var retryCount = DEFAULT_RETRY_COUNT;
