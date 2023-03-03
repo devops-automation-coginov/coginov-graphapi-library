@@ -183,6 +183,9 @@
   <data name="ErrorSavingExchangeMessage" xml:space="preserve">
     <value>Error saving Exchange message to file system</value>
   </data>
+  <data name="ErrorSendingEmail" xml:space="preserve">
+    <value>Error sending email to recipient</value>
+  </data>
   <data name="GraphRetryAttempts" xml:space="preserve">
     <value>Retrying in {0} seconds. Attepmt: {1}</value>
   </data>
