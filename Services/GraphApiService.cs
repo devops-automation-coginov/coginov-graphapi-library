@@ -375,8 +375,7 @@ namespace Coginov.GraphApi.Library.Services
                         HasMoreResults = searchCollection.NextPageRequest != null,
                         SkipToken = searchCollection.NextPageRequest != null
                             ? searchCollection.NextPageRequest.QueryOptions.FirstOrDefault(x => x.Name == "$skiptoken").Value
-                            : skipToken,
-                        LastDate = searchCollection?.LastOrDefault()?.LastModifiedDateTime?.DateTime ?? lastDate
+                            : skipToken
                     };
 
                     if (searchCollection == null)
@@ -395,6 +394,10 @@ namespace Coginov.GraphApi.Library.Services
 
                         driveItemResult.DocumentIds.Add(searchResult);
                     }
+
+                    driveItemResult.LastDate = driveItemResult.DocumentIds.Any()
+                                                    ? driveItemResult.DocumentIds.Last().LastModifiedDateTime.Value.DateTime
+                                                    : lastDate;
 
                     return driveItemResult;
                 }
