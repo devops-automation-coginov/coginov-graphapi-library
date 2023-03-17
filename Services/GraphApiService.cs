@@ -164,19 +164,9 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var uri = new Uri(site);
-                var isSubsite = uri.PathAndQuery.Contains("/sites/");
-                var subsite =  uri.PathAndQuery.TrimStart('/').Replace("sites/", "");
+                var siteId = await graphServiceClient.Sites[$"{uri.Host}:{uri.PathAndQuery}"].Request().Select("id").GetAsync();
 
-                if (isSubsite)
-                {
-                    var siteId = await graphServiceClient.Sites[$"{uri.Host}:"].Sites[subsite].Request().Select("id").GetAsync();
-                    return siteId?.Id?.Split(",")[1];
-                }
-                else
-                {
-                    var siteId = await graphServiceClient.Sites[$"{uri.Host}:{subsite}"].Request().Select("id").GetAsync();
-                    return siteId.Id;
-                }
+                return siteId.Id;
             }
             catch(Exception ex)
             {
