@@ -164,10 +164,19 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var uri = new Uri(site);
-                var subsite = uri.PathAndQuery.TrimStart('/').Replace("sites/", "");
-                var siteId = await graphServiceClient.Sites[$"{uri.Host}:{subsite}"].Request().Select("id").GetAsync();
+                var isSubsite = uri.PathAndQuery.Contains("/sites/");
+                var subsite =  uri.PathAndQuery.TrimStart('/').Replace("sites/", "");
 
-                return siteId?.Id;
+                if (isSubsite)
+                {
+                    var siteId = await graphServiceClient.Sites[$"{uri.Host}:"].Sites[subsite].Request().Select("id").GetAsync();
+                    return siteId?.Id?.Split(",")[1];
+                }
+                else
+                {
+                    var siteId = await graphServiceClient.Sites[$"{uri.Host}:{subsite}"].Request().Select("id").GetAsync();
+                    return siteId.Id;
+                }
             }
             catch(Exception ex)
             {
@@ -375,7 +384,8 @@ namespace Coginov.GraphApi.Library.Services
                         HasMoreResults = searchCollection.NextPageRequest != null,
                         SkipToken = searchCollection.NextPageRequest != null
                             ? searchCollection.NextPageRequest.QueryOptions.FirstOrDefault(x => x.Name == "$skiptoken").Value
-                            : skipToken
+                            : skipToken,
+                        LastDate = searchCollection?.LastOrDefault()?.LastModifiedDateTime?.DateTime ?? lastDate
                     };
 
                     if (searchCollection == null)
@@ -394,10 +404,6 @@ namespace Coginov.GraphApi.Library.Services
 
                         driveItemResult.DocumentIds.Add(searchResult);
                     }
-
-                    driveItemResult.LastDate = driveItemResult.DocumentIds.Any()
-                                                    ? driveItemResult.DocumentIds.Last().LastModifiedDateTime.Value.DateTime
-                                                    : lastDate;
 
                     return driveItemResult;
                 }
