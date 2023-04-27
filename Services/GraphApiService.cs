@@ -177,11 +177,6 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<List<DriveConnectionInfo>> GetDrives(string[]? drives = null, string root = "")
         {
-            if (drivesConnectionInfo != null && drivesConnectionInfo.Any())
-            {
-                return drivesConnectionInfo;
-            }
-
             if (drives != null)
             {
                 // Removing leading and trailing spaces
