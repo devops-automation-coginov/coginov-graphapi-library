@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Coginov.GraphApi.Library.Models
+﻿namespace Coginov.GraphApi.Library.Models
 {
     public class AuthenticationToken
     {
