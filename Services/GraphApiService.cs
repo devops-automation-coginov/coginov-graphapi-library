@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -16,20 +17,16 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using SystemFile = System.IO.File;
 
 namespace Coginov.GraphApi.Library.Services
 {
     public class GraphApiService : IGraphApiService, IDisposable
     {
-        private const long DEFAULT_CHUNK_SIZE = 1024 * 1024 * 1024; // 1 GB
-        private const int DEFAULT_RETRY_IN_SECONDS = 1;
-        private const int DEFAULT_RETRY_COUNT = 5;
         private readonly ILogger logger;
         private AuthenticationConfig authConfig;
         private GraphServiceClient graphServiceClient;
-        private List<DriveConnectionInfo> drivesConnectionInfo;
+        private List<DriveConnectionInfo> drivesConnectionInfo = new List<DriveConnectionInfo>();
         private DriveConnectionType connectionType;
         private string userId;
         private string siteId;
@@ -38,7 +35,17 @@ namespace Coginov.GraphApi.Library.Services
         private string msalCacheFileName;
         private MsalCacheHelper msalCacheHelper;
         private IPublicClientApplication pca;
-        private IConfidentialClientApplication cca; 
+        private IConfidentialClientApplication cca;
+
+        // SharePointOnline
+        private string siteUrl;
+        private string[] docLibraries;
+
+        // OneDrive
+        private string oneDriveUserAccount;
+
+        // MsTeams
+        private string[] teams; 
 
         public GraphApiService(ILogger logger)
         {
@@ -50,29 +57,27 @@ namespace Coginov.GraphApi.Library.Services
             if (msalCacheHelper != null)
             {
                 msalCacheHelper.UnregisterCache(pca.UserTokenCache);
-                System.IO.File.Delete(Path.Combine(msalCachePath, msalCacheFileName));
+                SystemFile.Delete(Path.Combine(msalCachePath, msalCacheFileName));
             }
         }
 
-        public async Task<bool> InitializeSharePointConnection(AuthenticationConfig authenticationConfig, string siteRoot, params string[] docLibraries)
+        public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries)
         {
-            authConfig = authenticationConfig;
+            this.authConfig = authenticationConfig;
+            this.siteUrl = siteUrl; 
+            this.docLibraries = docLibraries;
 
             if (!await IsInitialized())
-            {
                 return false;
-            }
 
             try
             {
                 connectionType = DriveConnectionType.SharePoinConnection;
-                siteId = await GetSiteId(siteRoot);
-                if (siteId == null)
-                {
+                siteId = await GetSiteId(siteUrl);
+                if (string.IsNullOrWhiteSpace(siteId))
                     return false;
-                }
 
-                await GetDrives(docLibraries, siteRoot.GetFolderNameFromSpoUrl());
+                drivesConnectionInfo?.Clear();
             }
             catch (Exception ex)
             {
@@ -83,21 +88,22 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string user)
+        public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount)
         {
-            authConfig = authenticationConfig;
+            this.authConfig = authenticationConfig;
+            this.oneDriveUserAccount = userAccount;
 
             if (!await IsInitialized())
-            {
                 return false;
-            }
 
             try
             {
                 connectionType = DriveConnectionType.OneDriveConnection;
-                userId = await GetUserId(user);
+                userId = await GetUserId(userAccount);
+                if (string.IsNullOrWhiteSpace(userId))
+                    return false;
+
                 drivesConnectionInfo?.Clear();
-                await GetDrives(root: user);
             }
             catch (Exception ex)
             {
@@ -108,19 +114,18 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, params string[]? teams)
+        public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams)
         {
-            authConfig = authenticationConfig;
+            this.authConfig = authenticationConfig;
+            this.teams = teams;
 
             if (!await IsInitialized())
-            {
                 return false;
-            }
 
             try
             {
                 connectionType = DriveConnectionType.MSTeamsConnection;
-                await GetDrives(teams);
+                drivesConnectionInfo?.Clear();
             }
             catch (Exception ex)
             {
@@ -134,11 +139,8 @@ namespace Coginov.GraphApi.Library.Services
         public async Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig)
         {
             authConfig = authenticationConfig;
-
             if (!await IsInitialized())
-            {
                 return false;
-            }
 
             connectionType = DriveConnectionType.ExchangeConnection;
             return true;
@@ -159,11 +161,11 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<string> GetSiteId(string site)
+        public async Task<string> GetSiteId(string siteUrl)
         {
             try
             {
-                var uri = new Uri(site);
+                var uri = new Uri(siteUrl);
                 var siteId = await graphServiceClient.Sites[$"{uri.Host}:{uri.PathAndQuery}"].Request().Select("id").GetAsync();
 
                 return siteId.Id;
@@ -175,118 +177,76 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<List<DriveConnectionInfo>> GetDrives(string[]? drives = null, string root = "")
+        public async Task<List<DriveConnectionInfo>> GetSharePointOnlineDrives()
         {
-            if (drives != null)
-            {
+            drivesConnectionInfo = new List<DriveConnectionInfo>();
+            if (docLibraries != null)
                 // Removing leading and trailing spaces
-                drives = drives.Select(x => x.Trim()).ToArray();
+                docLibraries = docLibraries.Select(x => x.Trim()).ToArray();
+
+            try
+            {
+                // Here 'docLibraries' could contain the Doc Libraries to process or null if we want to process all Doc Libraries on the site
+                var siteDrives = await graphServiceClient.Sites[siteId].Drives.Request().GetAsync();
+                var selectedDrives = siteDrives.Where(x => docLibraries == null || docLibraries.Contains(x.Name));
+
+                if (docLibraries == null)
+                    selectedDrives = siteDrives;
+                else
+                {
+                    foreach (var library in docLibraries)
+                    {
+                        // Show error if provided Document Library name doesn't exist
+                        if (siteDrives.FirstOrDefault(x => x.Name == library) == null)
+                            logger.LogError($"{Resource.LibraryNotFound}: {library}");
+                    }
+                }
+
+                if (!selectedDrives.Any())
+                    // Show error if provided Document Libraries names don't exist
+                    logger.LogError($"{Resource.LibrariesNotFound}: {string.Join(",", docLibraries)}");
+
+                foreach (var drive in selectedDrives)
+                {
+                    var driveInfo = new DriveConnectionInfo
+                    {
+                        Id = drive.Id,
+                        Root = siteUrl.GetFolderNameFromSpoUrl(),
+                        Path = drive.WebUrl,
+                        Name = drive.Name,
+                        DownloadCompleted = false
+                    };
+
+                    drivesConnectionInfo.Add(driveInfo);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
             }
 
+            return drivesConnectionInfo;
+        }
+
+        public async Task<List<DriveConnectionInfo>> GetOneDriveDrives()
+        {
             drivesConnectionInfo = new List<DriveConnectionInfo>();
 
             try
             {
-                switch (connectionType)
+                var userDrives = await graphServiceClient.Users[userId].Drives.Request().GetAsync();
+                foreach (var drive in userDrives)
                 {
-                    case DriveConnectionType.OneDriveConnection:
-                        var userDrives = await graphServiceClient.Users[userId].Drives.Request().GetAsync();
-                        foreach (var drive in userDrives)
-                        {
-                            var driveInfo = new DriveConnectionInfo
-                            {
-                                Id = drive.Id,
-                                Root = root,
-                                Path = drive.WebUrl,
-                                Name = drive.Name,
-                                DownloadCompleted = false
-                            };
+                    var driveInfo = new DriveConnectionInfo
+                    {
+                        Id = drive.Id,
+                        Root = oneDriveUserAccount,
+                        Path = drive.WebUrl,
+                        Name = drive.Name,
+                        DownloadCompleted = false
+                    };
 
-                            drivesConnectionInfo.Add(driveInfo);
-                        }
-
-                        break;
-                    case DriveConnectionType.SharePoinConnection:
-                        // Here 'drives' could contain the Doc Libraries to process or null if we want to process all Doc Libraries on the site
-                        var siteDrives = await graphServiceClient.Sites[siteId].Drives.Request().GetAsync();
-                        if (drives != null)
-                        {
-                            foreach (var library in drives)
-                            {
-                                // Show error if provided Document Library name doesn't exist
-                                if (siteDrives.FirstOrDefault(x => x.Name == library) == null)
-                                {
-                                    logger.LogError($"{Resource.LibraryNotFound}: {library}");
-                                }
-                            }
-                        }
-
-                        var selectedDrives = siteDrives.Where(x => drives == null || drives.Contains(x.Name));
-                        if (drives == null || !selectedDrives.Any())
-                        {
-                            logger.LogWarning(Resource.NoLibraryFound);
-                            selectedDrives = siteDrives;
-                        }
-
-                        foreach (var drive in selectedDrives)
-                        {
-                            var driveInfo = new DriveConnectionInfo
-                            {
-                                Id = drive.Id,
-                                Root = root,
-                                Path = drive.WebUrl,
-                                Name = drive.Name,
-                                DownloadCompleted = false
-                            };
-
-                            drivesConnectionInfo.Add(driveInfo);
-                        }
-
-                        break;
-                    case DriveConnectionType.MSTeamsConnection:
-                        // Here 'drives' could contain a list of MsTeams to process or null if we want to process all MsTeams on the organization
-                        IGraphServiceGroupsCollectionPage groups;
-                        if (drives == null)
-                        {
-                            groups = await graphServiceClient.Groups.Request().Filter("resourceProvisioningOptions/Any(x:x eq 'Team')").GetAsync();
-                        } 
-                        else
-                        {
-                            var filter = string.Join(" or ", drives.Select(x => $"displayName eq '{x.Trim()}'"));
-                            filter = $"{(filter)} and (resourceProvisioningOptions / Any(x: x eq 'Team'))";
-                            groups = await graphServiceClient.Groups.Request().Filter(filter).GetAsync();
-                            if (groups.Count == 0)
-                            {
-                                //if no teams found default to all
-                                groups = await graphServiceClient.Groups.Request().Filter("resourceProvisioningOptions/Any(x:x eq 'Team')").GetAsync();
-                            }
-                        }
-                        foreach(var group in groups)
-                        {
-                            Drive drive;
-                            try
-                            {
-                                drive = await graphServiceClient.Groups[group.Id].Drive.Request().GetAsync();
-                            }
-                            catch
-                            {
-                                logger.LogWarning($"{Resource.CannotAccessDrive}: {group.DisplayName}");
-                                continue;
-                            }
-                            var driveInfo = new DriveConnectionInfo
-                            {
-                                Id = drive.Id,
-                                Root = group.DisplayName,
-                                Path = drive.WebUrl,
-                                Name = drive.Name,
-                                GroupId = group.Id,
-                                DownloadCompleted = false
-                            };
-
-                            drivesConnectionInfo.Add(driveInfo);
-                        }
-
-                        break;
+                    drivesConnectionInfo.Add(driveInfo);
                 }
             }
             catch (Exception ex)
@@ -297,7 +257,63 @@ namespace Coginov.GraphApi.Library.Services
             return drivesConnectionInfo;
         }
 
-        // This method will only work with Delegated Permissions authentication
+        public async Task<List<DriveConnectionInfo>> GetMsTeamDrives()
+        {
+            drivesConnectionInfo = new List<DriveConnectionInfo>();
+            if (teams != null)
+                // Removing leading and trailing spaces
+                teams = teams.Select(x => x.Trim()).ToArray();
+
+            try
+            {
+                // Here 'teams' could contain a list of MsTeams to process or null if we want to process all MsTeams on the organization
+                IGraphServiceGroupsCollectionPage groups;
+                if (teams == null)
+                    groups = await graphServiceClient.Groups.Request().Filter("resourceProvisioningOptions/Any(x:x eq 'Team')").GetAsync();
+                else
+                {
+                    var filter = string.Join(" or ", teams.Select(x => $"displayName eq '{x.Trim()}'"));
+                    filter = $"{(filter)} and (resourceProvisioningOptions / Any(x: x eq 'Team'))";
+                    groups = await graphServiceClient.Groups.Request().Filter(filter).GetAsync();
+                    if (groups.Count == 0)
+                        // If no teams found log error
+                        logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", teams)}");
+                }
+
+                foreach (var group in groups)
+                {
+                    Drive drive;
+                    try
+                    {
+                        drive = await graphServiceClient.Groups[group.Id].Drive.Request().GetAsync();
+                    }
+                    catch
+                    {
+                        logger.LogWarning($"{Resource.CannotAccessDrive}: {group.DisplayName}");
+                        continue;
+                    }
+
+                    var driveInfo = new DriveConnectionInfo
+                    {
+                        Id = drive.Id,
+                        Root = group.DisplayName,
+                        Path = drive.WebUrl,
+                        Name = drive.Name,
+                        GroupId = group.Id,
+                        DownloadCompleted = false
+                    };
+
+                    drivesConnectionInfo.Add(driveInfo);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingTeams}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+            }
+
+            return drivesConnectionInfo;
+        }
+
         public async Task<List<string>> GetDocumentIds(string driveId, DateTime lastDate, int skip, int top)
         {
             var documentIds = new List<string>();
@@ -328,14 +344,10 @@ namespace Coginov.GraphApi.Library.Services
                 foreach (var searchResult in searchResults.First().HitsContainers)
                 {
                     if (searchResult.Total == 0)
-                    {
                         break;
-                    }
 
                     foreach (var hit in searchResult.Hits)
-                    {
                         documentIds.Add(hit.HitId);
-                    }
                 }
             }
             catch (Exception ex)
@@ -348,7 +360,7 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
@@ -374,18 +386,14 @@ namespace Coginov.GraphApi.Library.Services
                     };
 
                     if (searchCollection == null)
-                    {
                         return driveItemResult;
-                    }
 
                     foreach (var searchResult in searchCollection)
                     {
                         if (searchResult.Folder != null ||
                             searchResult.LastModifiedDateTime == null ||
                             searchResult.LastModifiedDateTime.Value.DateTime < lastDate)
-                        {
                             continue;
-                        }
 
                         driveItemResult.DocumentIds.Add(searchResult);
                     }
@@ -396,16 +404,17 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(String.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return null;
         }
 
         public async Task<DriveItem> GetDriveItem(string driveId, string documentId)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
@@ -420,7 +429,7 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorRetrievingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(String.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
@@ -429,7 +438,7 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
@@ -437,9 +446,7 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var document = await GetDriveItem(driveId, documentId);
                     if (document == null || document.File == null)
-                    {
                         return null;
-                    }
 
                     var drive = drivesConnectionInfo.First(x => x.Id == driveId);
                     var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
@@ -449,7 +456,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     document.AdditionalData.TryGetValue("@microsoft.graph.downloadUrl", out var downloadUrl);
                     var documentSize = document.Size;
-                    var readSize = DEFAULT_CHUNK_SIZE;
+                    var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
 
                     using (FileStream outputFileStream = new FileStream(path, FileMode.Create))
                     {
@@ -464,9 +471,8 @@ namespace Coginov.GraphApi.Library.Services
                             {
                                 var graphClientResponse = await graphServiceClient.HttpProvider.SendAsync(req);
                                 using (var rs = await graphClientResponse.Content.ReadAsStreamAsync())
-                                {
                                     rs.CopyTo(outputFileStream);
-                                }
+
                                 offset += readSize;
                             }
                             catch (TaskCanceledException)
@@ -486,10 +492,11 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(String.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return null;
         }
 
@@ -497,7 +504,7 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
@@ -509,9 +516,8 @@ namespace Coginov.GraphApi.Library.Services
                     var email = await graphServiceClient.Users[userAccount].Messages[message.Id].Content.Request().GetAsync();
 
                     using (FileStream outputFileStream = new FileStream(path, FileMode.Create))
-                    {
                         email.CopyTo(outputFileStream);
-                    }
+
                     return true;
                 }
                 catch (TaskCanceledException)
@@ -523,16 +529,17 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return false;
         }
 
         public async Task<IUserMessagesCollectionPage> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
             var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
 
             while (retryCount-- > 0)
@@ -548,16 +555,17 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return null;
         }
 
         public async Task<IMailFolderMessagesCollectionPage> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
             var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
 
             while (retryCount-- > 0)
@@ -566,9 +574,7 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages.Request();
                     if (preferText)
-                    {
                         graphRequest = graphRequest.Header("Prefer", "outlook.body-content-type=\"text\"");
-                    }
 
                     return await  graphRequest.Filter(filter).Skip(skipIndex).Top(emailCount)
                                               .OrderBy("createdDateTime").Expand(includeAttachments ? "attachments" : "")
@@ -578,16 +584,17 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return null;
         }
 
         public async Task<List<MailFolder>> GetEmailFolders(string userAccount)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
@@ -601,7 +608,7 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
@@ -610,7 +617,7 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<MailFolder> GetEmailFolderById(string userAccount, string folderId)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
@@ -622,16 +629,17 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return null;
         }
 
         public async Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
             var forwardToRecipient = new List<Recipient>{   
                 new Recipient
                 {
@@ -651,16 +659,18 @@ namespace Coginov.GraphApi.Library.Services
                             .Forward(forwardToRecipient)
                             .Request()
                             .PostAsync();
+
                     return true;
                 }
                 catch (ServiceException ex)
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return false;
         }
 
@@ -669,7 +679,7 @@ namespace Coginov.GraphApi.Library.Services
             var attachmentsCollection = new MessageAttachmentsCollectionPage();
             attachments?.ForEach(x => attachmentsCollection.Add(x));
 
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
             var message = new Message
             {
                 Subject = subject,
@@ -690,48 +700,49 @@ namespace Coginov.GraphApi.Library.Services
                             .SendMail(message, true)
                             .Request()
                             .PostAsync();
+
                     return true;
                 }
                 catch (ServiceException ex)
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return false;
         }
 
         public async Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder)
         {
-            var retryCount = DEFAULT_RETRY_COUNT;
+            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)
             {
                 try
                 {
                     var folder = (await GetEmailFolders(userAccount)).FirstOrDefault(x => x.DisplayName.Equals(newFolder, StringComparison.InvariantCultureIgnoreCase));
-
                     if (folder == null)
-                    {
                         return false;
-                    }
 
                     await graphServiceClient.Users[userAccount].Messages[emailId]
                             .Move(folder.Id)
                             .Request()
                             .PostAsync();
+
                     return true;
                 }
                 catch (ServiceException ex)
                 {
                     var retryInSeconds = GetRetryAfterSeconds(ex);
                     logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, DEFAULT_RETRY_COUNT - retryCount));
+                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
                     Thread.Sleep(retryInSeconds * 1000);
                 }
             }
+
             return false;
         }
 
@@ -864,7 +875,8 @@ namespace Coginov.GraphApi.Library.Services
         private async Task<bool> InitializeUsingAccessToken()
         {
             authenticationToken = InitializeFromTokenPath();
-            if (authenticationToken == null) return false;
+            if (authenticationToken == null) 
+                return false;
 
             try
             {
@@ -875,14 +887,10 @@ namespace Coginov.GraphApi.Library.Services
                         {
                             await GetValidToken();
                             if (authenticationToken != null)
-                            {
                                 // Add the access token in the Authorization header of the API request.
                                 requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authenticationToken.Access_Token);
-                            }
                             else
-                            {
                                 logger.LogError(Resource.CannotGetJwtToken);
-                            }
                         });
                     }));
             }
@@ -928,11 +936,9 @@ namespace Coginov.GraphApi.Library.Services
         private async Task<bool> IsInitialized()
         {
             if (graphServiceClient != null)
-            {
                 // TODO: Check if graphServiceClient is still connected
                 // Even when we could already have an instance of the client the connection may had been lost
                 return true;
-            }
 
             bool connected;
             switch (authConfig.AuthenticationMethod)
@@ -951,35 +957,26 @@ namespace Coginov.GraphApi.Library.Services
             }
 
             if (graphServiceClient != null)
-            {
                 //Increase GraphClient HttpClient timeout 
                 graphServiceClient.HttpProvider.OverallTimeout = TimeSpan.FromHours(3);
-            }
+
             return connected;
         }
 
         private bool UseClientSecret()
         {
             if (!string.IsNullOrWhiteSpace(authConfig.ClientSecret))
-            {
                 return true;
-            }
             else if (!string.IsNullOrWhiteSpace(authConfig.CertificateName))
-            {
                 return false;
-            }
             else
-            {
                 throw new Exception(Resource.ChooseClientOrCertificate);
-            }
         }
 
         private static X509Certificate2 ReadCertificate(string certificateName)
         {
             if (string.IsNullOrWhiteSpace(certificateName))
-            {
                 throw new ArgumentException(Resource.CertificateEmpty, nameof(certificateName));
-            }
 
             var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
             store.Open(OpenFlags.ReadOnly);
@@ -996,7 +993,7 @@ namespace Coginov.GraphApi.Library.Services
                 case System.Net.HttpStatusCode.TooManyRequests:
                 case System.Net.HttpStatusCode.ServiceUnavailable:
                 case System.Net.HttpStatusCode.GatewayTimeout:
-                    return ex.ResponseHeaders.TryGetValues("Retry-After", out retries) ? int.Parse(retries.First()) : DEFAULT_RETRY_IN_SECONDS;
+                    return ex.ResponseHeaders.TryGetValues("Retry-After", out retries) ? int.Parse(retries.First()) : ConstantHelper.DEFAULT_RETRY_IN_SECONDS;
                 default:
                     return 1;
             }
@@ -1004,14 +1001,16 @@ namespace Coginov.GraphApi.Library.Services
 
         private AuthenticationToken InitializeFromTokenPath()
         {
-            if (!SystemFile.Exists(authConfig.TokenPath)) return null;
+            if (!SystemFile.Exists(authConfig.TokenPath)) 
+                return null;
 
             string tokenString;
             AuthenticationToken token;
             try
             {
                 tokenString = SystemFile.ReadAllText(authConfig.TokenPath);
-                if (string.IsNullOrWhiteSpace(tokenString)) return null;
+                if (string.IsNullOrWhiteSpace(tokenString)) 
+                    return null;
             }
             catch (Exception ex)
             {
@@ -1029,14 +1028,12 @@ namespace Coginov.GraphApi.Library.Services
                 logger.LogWarning($"{Resource.TokenUnencrypted}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
-
             try
             {
                 token = GetTokenFromString(tokenString);
                 if (token != null)
-                {
                     SystemFile.WriteAllText(authConfig.TokenPath, AesHelper.EncryptToString(tokenString));
-                }
+
                 return token;
             }
             catch (Exception ex)
@@ -1064,9 +1061,7 @@ namespace Coginov.GraphApi.Library.Services
             var jwtToken = new JwtSecurityToken(authenticationToken.Access_Token);
             TimeSpan dateDiff = jwtToken.ValidTo - DateTime.UtcNow;
             if (dateDiff.TotalMinutes < timeInMinutes)
-            {
                 await RefreshToken();
-            }
         }
 
         private async Task RefreshToken()
@@ -1101,9 +1096,8 @@ namespace Coginov.GraphApi.Library.Services
             var jwtToken = new JwtSecurityToken(token);
             TimeSpan dateDiff = jwtToken.ValidTo - DateTime.UtcNow;
             if (dateDiff.TotalMinutes < timeInMinutes)
-            {
                 return true;
-            }
+
             return false;
         }
 

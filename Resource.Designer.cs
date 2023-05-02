@@ -178,6 +178,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error Retrieving Document Libraries.
+        /// </summary>
+        internal static string ErrorRetrievingDocLibraries {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingDocLibraries", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error retrieving Document Ids.
         /// </summary>
         internal static string ErrorRetrievingDocumentIds {
@@ -232,6 +241,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error Retrieving Teams.
+        /// </summary>
+        internal static string ErrorRetrievingTeams {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingTeams", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error retrieving User Id.
         /// </summary>
         internal static string ErrorRetrievingUserId {
@@ -277,20 +295,20 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Specified document libraries not found.
+        /// </summary>
+        internal static string LibrariesNotFound {
+            get {
+                return ResourceManager.GetString("LibrariesNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Specified document library not found.
         /// </summary>
         internal static string LibraryNotFound {
             get {
                 return ResourceManager.GetString("LibraryNotFound", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Specified libraries not found, selecting all Document Libraries as default.
-        /// </summary>
-        internal static string NoLibraryFound {
-            get {
-                return ResourceManager.GetString("NoLibraryFound", resourceCulture);
             }
         }
         

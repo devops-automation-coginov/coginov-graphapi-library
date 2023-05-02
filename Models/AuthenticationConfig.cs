@@ -3,7 +3,6 @@
 
 //using Microsoft.Extensions.Configuration;
 using Coginov.GraphApi.Library.Enums;
-using System;
 using System.Globalization;
 
 namespace Coginov.GraphApi.Library.Models
@@ -30,12 +29,12 @@ namespace Coginov.GraphApi.Library.Models
         /// or a domain name associated with the tenant
         /// - or 'organizations' (for a multi-tenant application)
         /// </summary>
-        public string Tenant { get; set; } = String.Empty;
+        public string Tenant { get; set; } = string.Empty;
 
         /// <summary>
         /// Guid used by the application to uniquely identify itself to Azure AD
         /// </summary>
-        public string ClientId { get; set; } = String.Empty;
+        public string ClientId { get; set; } = string.Empty;
 
         /// <summary>
         /// URL of the authority
@@ -56,7 +55,7 @@ namespace Coginov.GraphApi.Library.Models
         /// or a certificate previously shared with AzureAD during the application registration 
         /// (and identified by the CertificateName property belows)
         /// <remarks> 
-        public string ClientSecret { get; set; } = String.Empty;
+        public string ClientSecret { get; set; } = string.Empty;
 
         /// <summary>
         /// Name of a certificate in the user certificate store
@@ -66,7 +65,7 @@ namespace Coginov.GraphApi.Library.Models
         /// or a certificate previously shared with AzureAD during the application registration 
         /// (and identified by this CertificateName property)
         /// <remarks> 
-        public string CertificateName { get; set; } = String.Empty;
+        public string CertificateName { get; set; } = string.Empty;
 
         /// <summary>
         /// Method of Authentication
