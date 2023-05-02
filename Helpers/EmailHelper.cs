@@ -14,23 +14,24 @@ namespace Coginov.GraphApi.Library.Helpers
 
         public static string ToStringFormat(this IEnumerable<Recipient> emails)
         {
-            return String.Join(';', emails.Select(x => x.EmailAddress.ToStringFormat()));
+            return string.Join(';', emails.Select(x => x.EmailAddress.ToStringFormat()));
         }
 
         public static List<Recipient> ParseRecipients(this string recipients)
         {
             recipients.Replace(';', ',');
+
             try
             {
                 return recipients.Split(',').Select(to =>
-                        new Recipient
+                    new Recipient
+                    {
+                        EmailAddress = new EmailAddress
                         {
-                            EmailAddress = new EmailAddress
-                            {
-                                Address = to.Trim()
-                            }
+                            Address = to.Trim()
                         }
-                    ).ToList();
+                    }
+                ).ToList();
 
             }
             catch(Exception)

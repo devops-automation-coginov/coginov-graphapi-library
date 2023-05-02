@@ -156,6 +156,9 @@
   <data name="ErrorMovingEmail" xml:space="preserve">
     <value>Error moving email to folder</value>
   </data>
+  <data name="ErrorRetrievingDocLibraries" xml:space="preserve">
+    <value>Error Retrieving Document Libraries</value>
+  </data>
   <data name="ErrorRetrievingDocumentIds" xml:space="preserve">
     <value>Error retrieving Document Ids</value>
   </data>
@@ -174,6 +177,9 @@
   <data name="ErrorRetrievingSiteId" xml:space="preserve">
     <value>Error retrieving Site Id</value>
   </data>
+  <data name="ErrorRetrievingTeams" xml:space="preserve">
+    <value>Error Retrieving Teams</value>
+  </data>
   <data name="ErrorRetrievingUserId" xml:space="preserve">
     <value>Error retrieving User Id</value>
   </data>
@@ -189,11 +195,11 @@
   <data name="GraphRetryAttempts" xml:space="preserve">
     <value>Retrying in {0} seconds. Attepmt: {1}</value>
   </data>
+  <data name="LibrariesNotFound" xml:space="preserve">
+    <value>Specified document libraries not found</value>
+  </data>
   <data name="LibraryNotFound" xml:space="preserve">
     <value>Specified document library not found</value>
-  </data>
-  <data name="NoLibraryFound" xml:space="preserve">
-    <value>Specified libraries not found, selecting all Document Libraries as default</value>
   </data>
   <data name="TokenUnencrypted" xml:space="preserve">
     <value>Cannot retrieve encrypted token, token may be unencrypted</value>
