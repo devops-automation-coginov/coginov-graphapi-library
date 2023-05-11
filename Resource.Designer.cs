@@ -286,6 +286,24 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to File already exists. Retrying with another name..
+        /// </summary>
+        internal static string FileAlreadyExists {
+            get {
+                return ResourceManager.GetString("FileAlreadyExists", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error retrieving document Ids. Returning empty results.
+        /// </summary>
+        internal static string GraphApiExceptionReturningEmptyResult {
+            get {
+                return ResourceManager.GetString("GraphApiExceptionReturningEmptyResult", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Retrying in {0} seconds. Attepmt: {1}.
         /// </summary>
         internal static string GraphRetryAttempts {

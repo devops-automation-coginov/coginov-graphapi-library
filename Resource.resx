@@ -192,6 +192,12 @@
   <data name="ErrorSendingEmail" xml:space="preserve">
     <value>Error sending email to recipient</value>
   </data>
+  <data name="FileAlreadyExists" xml:space="preserve">
+    <value>File already exists. Retrying with another name.</value>
+  </data>
+  <data name="GraphApiExceptionReturningEmptyResult" xml:space="preserve">
+    <value>Error retrieving document Ids. Returning empty results</value>
+  </data>
   <data name="GraphRetryAttempts" xml:space="preserve">
     <value>Retrying in {0} seconds. Attepmt: {1}</value>
   </data>
