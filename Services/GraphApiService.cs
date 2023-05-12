@@ -18,6 +18,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using SystemFile = System.IO.File;
+using System.Web;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -366,22 +367,31 @@ namespace Coginov.GraphApi.Library.Services
             {
                 try
                 {
-                    var queryOptions = new List<QueryOption> { new QueryOption("$skiptoken", skipToken) };
+                    var queryOptions = new List<QueryOption> { new QueryOption("token", skipToken) };
                     var searchCollection = await GetDriveRoot(driveId)
                         .Root
-                        .Search("")
+                        .Delta()
                         .Request(queryOptions)
                         .OrderBy("lastModifiedDateTime")
                         .Top(top)
                         .GetAsync();
 
+                    if (searchCollection.NextPageRequest != null) 
+                    {
+                        skipToken = searchCollection.NextPageRequest.QueryOptions.FirstOrDefault(x => x.Name == "token").Value;
+                    }
+                    else
+                    {
+                        searchCollection.AdditionalData.TryGetValue("@odata.deltaLink", out var deltaLink);
+                        var deltaLinkUri = new Uri(deltaLink.ToString());
+                        skipToken = HttpUtility.ParseQueryString(deltaLinkUri.Query).Get("token");
+                    }
+
                     var driveItemResult = new DriveItemSearchResult
                     {
                         DocumentIds = new List<DriveItem>(),
                         HasMoreResults = searchCollection.NextPageRequest != null,
-                        SkipToken = searchCollection.NextPageRequest != null
-                            ? searchCollection.NextPageRequest.QueryOptions.FirstOrDefault(x => x.Name == "$skiptoken").Value
-                            : skipToken,
+                        SkipToken = skipToken,
                         LastDate = searchCollection?.LastOrDefault()?.LastModifiedDateTime?.DateTime ?? lastDate
                     };
 
@@ -390,9 +400,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var searchResult in searchCollection)
                     {
-                        if (searchResult.Folder != null ||
-                            searchResult.LastModifiedDateTime == null ||
-                            searchResult.LastModifiedDateTime.Value.DateTime < lastDate)
+                        if (searchResult.Folder != null || searchResult.Deleted != null)
                             continue;
 
                         driveItemResult.DocumentIds.Add(searchResult);
@@ -458,7 +466,7 @@ namespace Coginov.GraphApi.Library.Services
                     var documentSize = document.Size;
                     var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
 
-                    using (FileStream outputFileStream = new FileStream(path, FileMode.Create))
+                    using (FileStream outputFileStream = new FileStream(path.GetFilePathWithTimestamp(), FileMode.Create))
                     {
                         long offset = 0;
                         while (offset < documentSize)
@@ -483,9 +491,9 @@ namespace Coginov.GraphApi.Library.Services
                                 outputFileStream.Seek(offset, SeekOrigin.Begin);
                             }
                         }
+                        document.AdditionalData.Add("FilePath", outputFileStream.Name);
                     }
 
-                    document.AdditionalData.Add("FilePath", path);
                     return document;
                 }
                 catch (ServiceException ex)
