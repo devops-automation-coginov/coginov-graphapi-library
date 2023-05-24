@@ -400,7 +400,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var searchResult in searchCollection)
                     {
-                        if (searchResult.Folder != null || searchResult.Deleted != null)
+                        if (searchResult.Folder != null || searchResult.Deleted != null || searchResult.File == null) 
                             continue;
 
                         driveItemResult.DocumentIds.Add(searchResult);
