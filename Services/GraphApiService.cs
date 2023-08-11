@@ -1088,14 +1088,16 @@ namespace Coginov.GraphApi.Library.Services
                 var response = await httpClient.PostAsync(refreshUrl, new FormUrlEncodedContent(data));
 
                 var result = await response.Content.ReadAsStringAsync();
+                logger.LogInformation($"{response.ReasonPhrase}. {result}");
+                response.EnsureSuccessStatusCode();
 
                 authenticationToken = JsonConvert.DeserializeObject<AuthenticationToken>(result);
 
                 SystemFile.WriteAllText(authConfig.TokenPath, AesHelper.EncryptToString(result));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                logger.LogError(Resource.CannotGetRefreshToken);
+                logger.LogError($"{Resource.CannotGetRefreshToken}. {ex.Message}");
             }
         }
 
