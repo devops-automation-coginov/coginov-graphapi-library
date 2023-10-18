@@ -19,7 +19,7 @@ namespace Coginov.GraphApi.Library.Helpers
         private AuthenticationToken _authToken;
         private ILogger _logger;
 
-        public TokenProvider(AuthenticationConfig authenticationConfig, AuthenticationToken authenticationToken, ILogger logger, string token = null)
+        public TokenProvider(ILogger logger, AuthenticationConfig authenticationConfig = null, AuthenticationToken authenticationToken = null, string token = null)
         {
             _token = token;
             _authConfig = authenticationConfig;
