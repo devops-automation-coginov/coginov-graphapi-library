@@ -214,6 +214,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error removing email.
+        /// </summary>
+        internal static string ErrorRemovingEmail {
+            get {
+                return ResourceManager.GetString("ErrorRemovingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error Retrieving Document Libraries.
         /// </summary>
         internal static string ErrorRetrievingDocLibraries {

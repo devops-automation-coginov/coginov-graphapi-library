@@ -939,6 +939,20 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        public async Task<bool> RemoveEmail(string userAccount, string emailId)
+        {
+            try
+            {
+                await graphServiceClient.Users[userAccount].Messages[emailId].DeleteAsync();
+                return true;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorRemovingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return false;
+            }
+        }
+
         #endregion
 
         #region Private Methods
