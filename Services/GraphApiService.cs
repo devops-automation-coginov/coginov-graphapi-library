@@ -28,6 +28,7 @@ using Microsoft.Kiota.Http.HttpClientLibrary.Middleware;
 using System.Text.RegularExpressions;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
+using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -560,6 +561,67 @@ namespace Coginov.GraphApi.Library.Services
             }
 
             return null;
+        }
+
+        public async Task<bool> UploadDocumentToDrive(string driveId, string filePath, string fileName = null, string folderPath = "", string onConflict = "replace")
+        {
+            using var fileStream = File.OpenRead(filePath);
+            if (fileName == null)
+            {
+                fileName = Path.GetFileName(filePath);
+            }
+
+            // Use properties to specify the conflict behavior. Posible values for onConflict = "fail (default) | replace | rename"
+            var uploadSessionRequestBody = new DriveUpload.CreateUploadSessionPostRequestBody
+            {
+                Item = new DriveItemUploadableProperties
+                {
+                    AdditionalData = new Dictionary<string, object>
+                    {
+                        { "@microsoft.graph.conflictBehavior", onConflict },
+                    },
+                },
+            };
+
+            try
+            {
+                // Create the upload session
+                var myDrive = await graphServiceClient.Drives[driveId].GetAsync();
+                var uploadSession = await graphServiceClient.Drives[driveId]
+                    .Items["root"]
+                    .ItemWithPath($"{folderPath}/{Path.GetFileName(filePath)}")
+                    .CreateUploadSession
+                    .PostAsync(uploadSessionRequestBody);
+
+                var fileUploadTask = new LargeFileUploadTask<DriveItem>(uploadSession, fileStream, ConstantHelper.DEFAULT_CHUNK_SIZE, graphServiceClient.RequestAdapter);
+
+                var totalLength = fileStream.Length;
+                // Create a callback that is invoked after each slice is uploaded
+                IProgress<long> progress = new Progress<long>(prog =>
+                {
+                    logger.LogInformation(string.Format(Resource.DriveItemUploadProgress, prog, totalLength));
+                });
+
+                // Upload the file
+                var uploadResult = await fileUploadTask.UploadAsync(progress);
+
+                if (uploadResult.UploadSucceeded)
+                {
+                    logger.LogInformation($"{Resource.DriveItemUploadComplete}: {uploadResult.ItemResponse.Id}");
+                }
+                else
+                {
+                    logger.LogError(Resource.DriveItemUploadFailed);
+                }
+
+                return true;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.DriveItemUploadFailed}: {ex.Error?.Message}");
+                return false;
+            }
+
         }
 
         #region Exchange Online methods

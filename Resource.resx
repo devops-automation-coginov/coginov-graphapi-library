@@ -138,6 +138,15 @@
   <data name="ChooseClientOrCertificate" xml:space="preserve">
     <value>You must choose between using client secret or certificate. Please update appsettings.json file.</value>
   </data>
+  <data name="DriveItemUploadComplete" xml:space="preserve">
+    <value>Upload complete, item ID</value>
+  </data>
+  <data name="DriveItemUploadFailed" xml:space="preserve">
+    <value>Error uploading file</value>
+  </data>
+  <data name="DriveItemUploadProgress" xml:space="preserve">
+    <value>Uploaded {0} bytes of {1} bytes</value>
+  </data>
   <data name="ErrorForwardingEmail" xml:space="preserve">
     <value>Error forwarding email to recipient</value>
   </data>
