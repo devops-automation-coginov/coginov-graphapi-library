@@ -151,6 +151,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error deleting DriveItem.
+        /// </summary>
+        internal static string ErrorDeletingDriveItem {
+            get {
+                return ResourceManager.GetString("ErrorDeletingDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error forwarding email to recipient.
         /// </summary>
         internal static string ErrorForwardingEmail {

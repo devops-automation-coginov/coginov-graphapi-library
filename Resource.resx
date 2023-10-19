@@ -147,6 +147,9 @@
   <data name="DriveItemUploadProgress" xml:space="preserve">
     <value>Uploaded {0} bytes of {1} bytes</value>
   </data>
+  <data name="ErrorDeletingDriveItem" xml:space="preserve">
+    <value>Error deleting DriveItem</value>
+  </data>
   <data name="ErrorForwardingEmail" xml:space="preserve">
     <value>Error forwarding email to recipient</value>
   </data>

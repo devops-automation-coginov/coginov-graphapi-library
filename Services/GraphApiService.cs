@@ -29,6 +29,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
+using System.Reflection.Metadata;
+using Microsoft.Graph.Models.Security;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -622,6 +624,38 @@ namespace Coginov.GraphApi.Library.Services
                 return false;
             }
 
+        }
+
+        public async Task<bool> DeleteDocumentById(string driveId, string documentId)
+        {
+            try
+            {
+                await graphServiceClient.Drives[driveId].Items[documentId].DeleteAsync();
+                return true;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteDocumentByPath(string driveId, string documentPath)
+        {
+            try
+            {
+                var driveItem = await graphServiceClient.Drives[driveId]
+                                                        .Items["root"]
+                                                        .ItemWithPath(documentPath)
+                                                        .GetAsync();
+
+                return await DeleteDocumentById(driveId, driveItem.Id);
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return false;
+            }
         }
 
         #region Exchange Online methods

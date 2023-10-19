@@ -28,5 +28,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<bool> SendEmail(string fromAccount, string toAccounts, string subject, string body, List<Attachment> attachments = null);
         Task<int?> GetInboxMessageCount(string userAccount);
         Task<bool> UploadDocumentToDrive(string driveId, string  filePath, string fileName = null, string folderPath = "", string onConflict = "replace");
+        Task<bool> DeleteDocumentById(string driveId, string documentId);
+        Task<bool> DeleteDocumentByPath(string driveId, string documentPath);
     }
 }
