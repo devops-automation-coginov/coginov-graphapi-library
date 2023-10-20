@@ -30,5 +30,6 @@ namespace Coginov.GraphApi.Library.Services
         Task<bool> UploadDocumentToDrive(string driveId, string  filePath, string fileName = null, string folderPath = "", string onConflict = "replace");
         Task<bool> DeleteDocumentById(string driveId, string documentId);
         Task<bool> DeleteDocumentByPath(string driveId, string documentPath);
+        Task<bool> MoveDocument(string driveId, string documentId, string destFolderId = null, string destFolder = null, string docNewName = null);
     }
 }

@@ -658,6 +658,44 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        public async Task<bool> MoveDocument(string driveId, string documentId, string destFolderId = null, string destFolder = null, string docNewName = null)
+        {
+            try
+            {
+                if (destFolderId == null)
+                {
+                    var folder = await graphServiceClient.Drives[driveId].Items["root"].ItemWithPath(destFolder ?? "//").GetAsync();
+
+                    if (folder == null)
+                    {
+                        logger.LogError(Resource.DestinationFolderNotFound);
+                        return false;
+                    }
+
+                    destFolderId = folder.Id;
+                }
+
+                var requestBody = new DriveItem
+                {
+                    ParentReference = new ItemReference
+                    {
+                        Id = destFolderId
+                    }
+                };
+
+                if (docNewName != null)
+                    requestBody.Name = docNewName;
+
+                var result = await graphServiceClient.Drives[driveId].Items[documentId].PatchAsync(requestBody);
+                return true;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return false;
+            }
+        }
+
         #region Exchange Online methods
 
         public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)

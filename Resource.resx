@@ -138,6 +138,9 @@
   <data name="ChooseClientOrCertificate" xml:space="preserve">
     <value>You must choose between using client secret or certificate. Please update appsettings.json file.</value>
   </data>
+  <data name="DestinationFolderNotFound" xml:space="preserve">
+    <value>Destination folder not found</value>
+  </data>
   <data name="DriveItemUploadComplete" xml:space="preserve">
     <value>Upload complete, item ID</value>
   </data>
@@ -164,6 +167,9 @@
   </data>
   <data name="ErrorInitializingTeamsConnection" xml:space="preserve">
     <value>Error initializing MS Teams connection</value>
+  </data>
+  <data name="ErrorMovingDriveItem" xml:space="preserve">
+    <value>Error moving DriveItem</value>
   </data>
   <data name="ErrorMovingEmail" xml:space="preserve">
     <value>Error moving email to folder</value>

@@ -124,6 +124,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Destination folder not found.
+        /// </summary>
+        internal static string DestinationFolderNotFound {
+            get {
+                return ResourceManager.GetString("DestinationFolderNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Upload complete, item ID.
         /// </summary>
         internal static string DriveItemUploadComplete {
@@ -201,6 +210,15 @@ namespace Coginov.GraphApi.Library {
         internal static string ErrorInitializingTeamsConnection {
             get {
                 return ResourceManager.GetString("ErrorInitializingTeamsConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error moving DriveItem.
+        /// </summary>
+        internal static string ErrorMovingDriveItem {
+            get {
+                return ResourceManager.GetString("ErrorMovingDriveItem", resourceCulture);
             }
         }
         
