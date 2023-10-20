@@ -1,4 +1,4 @@
-﻿using Microsoft.Graph;
+﻿using Microsoft.Graph.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,7 +44,7 @@ namespace Coginov.GraphApi.Library.Helpers
         {
             return new FileAttachment
             {
-                ODataType = "#microsoft.graph.fileAttachment",
+                OdataType = "#microsoft.graph.fileAttachment",
                 Name = fileName,
                 ContentBytes = fileBytes
             };

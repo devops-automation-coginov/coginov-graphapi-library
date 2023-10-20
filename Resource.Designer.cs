@@ -232,6 +232,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error retrieving Exchange messages count.
+        /// </summary>
+        internal static string ErrorRetrievingExchangeMessagesCount {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingExchangeMessagesCount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error retrieving Site Id.
         /// </summary>
         internal static string ErrorRetrievingSiteId {
