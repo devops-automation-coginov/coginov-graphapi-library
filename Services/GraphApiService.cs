@@ -532,7 +532,7 @@ namespace Coginov.GraphApi.Library.Services
                             try
                             {
                                 var graphClientResponse = await graphHttpClient.SendAsync(req);
-                                if (graphClientResponse.StatusCode != System.Net.HttpStatusCode.OK || graphClientResponse.StatusCode != System.Net.HttpStatusCode.PartialContent)
+                                if (graphClientResponse.StatusCode != System.Net.HttpStatusCode.OK && graphClientResponse.StatusCode != System.Net.HttpStatusCode.PartialContent)
                                     throw new TaskCanceledException();
 
                                 using (var rs = await graphClientResponse.Content.ReadAsStreamAsync())
@@ -565,9 +565,18 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        /// <summary>
+        /// Uploads a file from the file system to a cloud drive
+        /// https://learn.microsoft.com/en-us/graph/sdks/large-file-upload
+        /// </summary>
+        /// <param name="driveId">Location(drive) where the document is to be uploaded(SPO, OneDrive, Teams) e.g: b!8iWW4uSCgUivMIG9AG1qEeKEpuugBHBKluSqT2GoUxM_0VutFV5zQIqEiYUABvpu</param>
+        /// <param name="filePath">FileName and Path where the document is stored in the local file system. e.g: c:\forlder\file.txt</param>
+        /// <param name="fileName">Optional parameter to change the name of the uploaded file</param>
+        /// <param name="folderPath">Optional location in the document library where the file will be uploaded. e.g: folder1/folder2</param>
+        /// <param name="onConflict">Optional conflict resolution behaviour. Default: replace</param>
+        /// <returns></returns>
         public async Task<bool> UploadDocumentToDrive(string driveId, string filePath, string fileName = null, string folderPath = "", string onConflict = "replace")
         {
-            using var fileStream = File.OpenRead(filePath);
             if (fileName == null)
             {
                 fileName = Path.GetFileName(filePath);
@@ -587,11 +596,13 @@ namespace Coginov.GraphApi.Library.Services
 
             try
             {
+                using var fileStream = File.OpenRead(filePath);
+
                 // Create the upload session
                 var myDrive = await graphServiceClient.Drives[driveId].GetAsync();
                 var uploadSession = await graphServiceClient.Drives[driveId]
                     .Items["root"]
-                    .ItemWithPath($"{folderPath}/{Path.GetFileName(filePath)}")
+                    .ItemWithPath($"{folderPath}/{fileName}")
                     .CreateUploadSession
                     .PostAsync(uploadSessionRequestBody);
 
@@ -614,6 +625,7 @@ namespace Coginov.GraphApi.Library.Services
                 else
                 {
                     logger.LogError(Resource.DriveItemUploadFailed);
+                    return false;
                 }
 
                 return true;
@@ -626,6 +638,13 @@ namespace Coginov.GraphApi.Library.Services
 
         }
 
+        /// <summary>
+        /// Delete a document from a drive using its Id
+        /// https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0
+        /// </summary>
+        /// <param name="driveId">Location(drive) where the document is located</param>
+        /// <param name="documentId">Id of the document</param>
+        /// <returns></returns>
         public async Task<bool> DeleteDocumentById(string driveId, string documentId)
         {
             try
@@ -640,6 +659,13 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Delete a document froma drive using its relative path
+        /// https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0
+        /// </summary>
+        /// <param name="driveId">Location(drive) where the document is located</param>
+        /// <param name="documentPath">Path to the document in the drive</param>
+        /// <returns></returns>
         public async Task<bool> DeleteDocumentByPath(string driveId, string documentPath)
         {
             try
@@ -658,6 +684,16 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Move a document to a different location within the same drive. Graph Api SDK does not allow moving to a different drive
+        /// https://learn.microsoft.com/en-us/graph/api/driveitem-move?view=graph-rest-1.0
+        /// </summary>
+        /// <param name="driveId">Location(drive) where the document is located</param>
+        /// <param name="documentId">Id of the document</param>
+        /// <param name="destFolderId">Folder id where the document will be moved (Optional, will take precedence over destFolder)</param>
+        /// <param name="destFolder">Path of the folder where the document will be moved (Optional)</param>
+        /// <param name="docNewName">New name of the document when moved (Optional)</param>
+        /// <returns></returns>
         public async Task<bool> MoveDocument(string driveId, string documentId, string destFolderId = null, string destFolder = null, string docNewName = null)
         {
             try
@@ -977,6 +1013,13 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        /// <summary>
+        /// Delete email from user account
+        /// https://learn.microsoft.com/en-us/graph/api/message-delete
+        /// </summary>
+        /// <param name="userAccount">Account(email address) containing the email to be deleted</param>
+        /// <param name="emailId">Id of the email to be deleted</param>
+        /// <returns></returns>
         public async Task<bool> RemoveEmail(string userAccount, string emailId)
         {
             try
