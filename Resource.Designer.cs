@@ -124,6 +124,51 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Destination folder not found.
+        /// </summary>
+        internal static string DestinationFolderNotFound {
+            get {
+                return ResourceManager.GetString("DestinationFolderNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Upload complete, item ID.
+        /// </summary>
+        internal static string DriveItemUploadComplete {
+            get {
+                return ResourceManager.GetString("DriveItemUploadComplete", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error uploading file.
+        /// </summary>
+        internal static string DriveItemUploadFailed {
+            get {
+                return ResourceManager.GetString("DriveItemUploadFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Uploaded {0} bytes of {1} bytes.
+        /// </summary>
+        internal static string DriveItemUploadProgress {
+            get {
+                return ResourceManager.GetString("DriveItemUploadProgress", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error deleting DriveItem.
+        /// </summary>
+        internal static string ErrorDeletingDriveItem {
+            get {
+                return ResourceManager.GetString("ErrorDeletingDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error forwarding email to recipient.
         /// </summary>
         internal static string ErrorForwardingEmail {
@@ -169,11 +214,29 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error moving DriveItem.
+        /// </summary>
+        internal static string ErrorMovingDriveItem {
+            get {
+                return ResourceManager.GetString("ErrorMovingDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error moving email to folder.
         /// </summary>
         internal static string ErrorMovingEmail {
             get {
                 return ResourceManager.GetString("ErrorMovingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error removing email.
+        /// </summary>
+        internal static string ErrorRemovingEmail {
+            get {
+                return ResourceManager.GetString("ErrorRemovingEmail", resourceCulture);
             }
         }
         
