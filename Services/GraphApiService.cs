@@ -741,11 +741,11 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="searchValue">Value to match in the specified field. Optional if searchFilter is specified</param>
         /// <param name="searchFilter">Optional search condition. Superseeds searchField/searchValue combination </param>
         /// <returns>List of field values for found folders</returns>
-        public async Task<List<Dictionary<string, object>>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null)
+        public async Task<List<ListItem>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null)
         {
-            if (searchFilter == null)
+            if (string.IsNullOrWhiteSpace(searchFilter))
             {
-                if (searchField == null || searchValue == null)
+                if (string.IsNullOrWhiteSpace(searchField) || string.IsNullOrWhiteSpace(searchValue))
                 {
                     logger.LogError("Invalid search parameters");
                     return null;
@@ -768,7 +768,78 @@ namespace Coginov.GraphApi.Library.Services
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
 
-                return folders.Value.Select(x => x.Fields.AdditionalData.ToDictionary(x => x.Key, x => x.Value)).ToList();
+                return folders.Value;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{"Error retrieving folder from Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Update one field in a document librayr with a new value
+        /// </summary>
+        /// <param name="siteUrl">Url of the Sharepoint site. e.g: https://coginovportal.sharepoint.com/sites/Dev-JC</param>
+        /// <param name="docLibrary">Display name of the document library. e.g: "Documenst Test"</param>
+        /// <param name="updateField">Field to be updated</param>
+        /// <param name="updateValue">New value for the field</param>
+        /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
+        public async Task<Dictionary<ListItem, string>> UpdateSharepointOnlineFoldersValue(string siteUrl, string docLibrary, string updateField, string updateValue)
+        {
+            if (string.IsNullOrWhiteSpace(updateField) || string.IsNullOrWhiteSpace(updateValue))
+            {
+                logger.LogError("Invalid update parameters");
+                return null;
+            }
+
+            try
+            {
+                var siteId = await GetSiteId(siteUrl);
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    return null;
+                }
+
+                var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Expand = new string[] { "fields" };
+                    requestConfiguration.QueryParameters.Filter = "fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder'";
+                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                });
+
+                var result = new Dictionary<ListItem, string>();
+
+                foreach (var folder in folders.Value) 
+                {
+                    if (!folder.Fields.AdditionalData.ContainsKey(updateField))
+                    {
+                        result.Add(folder, $"Field {updateField} is not recognized");
+                        continue;
+                    }
+
+                    var requestBody = new FieldValueSet
+                    {
+                        AdditionalData = new Dictionary<string, object>
+                        {
+                            {
+                                updateField , updateValue
+                            }
+                        },
+                    };
+
+                    try
+                    {
+                        var listItemResult = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items[folder.Id].Fields.PatchAsync(requestBody);
+                        result.Add(folder, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Add(folder, ex.Message);
+                    }
+                }
+
+                return result;
             }
             catch (ODataError ex)
             {
