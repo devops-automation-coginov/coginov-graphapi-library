@@ -843,7 +843,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex)
             {
-                logger.LogError($"{"Error retrieving folder from Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
                 return null;
             }
         }
