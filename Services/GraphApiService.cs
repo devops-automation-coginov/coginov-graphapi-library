@@ -732,6 +732,51 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Search folders and document sets in a Sahrepoint Document libray that match a specific criteria.
+        /// </summary>
+        /// <param name="siteUrl">Url of the Sharepoint site. e.g: https://coginovportal.sharepoint.com/sites/Dev-JC</param>
+        /// <param name="docLibrary">Display name of the document library. e.g: "Documenst Test"</param>
+        /// <param name="searchField">Field to search for a specific value. Optional if searchFilter is specified</param>
+        /// <param name="searchValue">Value to match in the specified field. Optional if searchFilter is specified</param>
+        /// <param name="searchFilter">Optional search condition. Superseeds searchField/searchValue combination </param>
+        /// <returns>List of field values for found folders</returns>
+        public async Task<List<Dictionary<string, object>>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null)
+        {
+            if (searchFilter == null)
+            {
+                if (searchField == null || searchValue == null)
+                {
+                    logger.LogError("Invalid search parameters");
+                    return null;
+                }
+            }
+
+            try
+            {
+                var siteId = await GetSiteId(siteUrl);
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    return null;
+                }
+
+                var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Expand = new string[] { "fields" };
+                    requestConfiguration.QueryParameters.Filter = "fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder'";
+                    requestConfiguration.QueryParameters.Filter = searchFilter ?? $"fields/{searchField} eq '{searchValue}'";
+                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                });
+
+                return folders.Value.Select(x => x.Fields.AdditionalData.ToDictionary(x => x.Key, x => x.Value)).ToList();
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{"Error retrieving folder from Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
         #region Exchange Online methods
 
         public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
