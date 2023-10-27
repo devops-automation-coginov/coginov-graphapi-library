@@ -33,5 +33,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<bool> MoveDocument(string driveId, string documentId, string destFolderId = null, string destFolder = null, string docNewName = null);
         Task<List<ListItem>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null);
         Task<Dictionary<ListItem, string>> UpdateSharepointOnlineFoldersValue(string siteUrl, string docLibrary, string updateField, string updateValue);
+        Task<Dictionary<ListItem, string>> UpdateSharepointOnlineItemsValue(List<ListItem> items, string updateField, string updateValue);
+        Task<List<DriveItem>> GetListOfFilesInFolder(ListItem listItem);
     }
 }

@@ -29,8 +29,6 @@ using System.Text.RegularExpressions;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
-using System.Reflection.Metadata;
-using Microsoft.Graph.Models.Security;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -762,9 +760,10 @@ namespace Coginov.GraphApi.Library.Services
 
                 var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
                 {
-                    requestConfiguration.QueryParameters.Expand = new string[] { "fields" };
+                    requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
                     requestConfiguration.QueryParameters.Filter = "fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder'";
                     requestConfiguration.QueryParameters.Filter = searchFilter ?? $"fields/{searchField} eq '{searchValue}'";
+                    requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
 
@@ -778,7 +777,7 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Update one field in a document librayr with a new value
+        /// Update one field in a document library with a new value
         /// </summary>
         /// <param name="siteUrl">Url of the Sharepoint site. e.g: https://coginovportal.sharepoint.com/sites/Dev-JC</param>
         /// <param name="docLibrary">Display name of the document library. e.g: "Documenst Test"</param>
@@ -844,6 +843,88 @@ namespace Coginov.GraphApi.Library.Services
             catch (ODataError ex)
             {
                 logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Update one field in a list of documents with a new value
+        /// </summary>
+        /// <param name="items">List of items to be updated</param>
+        /// <param name="updateField">Field to be updated</param>
+        /// <param name="updateValue">New value for the field</param>
+        /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
+        public async Task<Dictionary<ListItem, string>> UpdateSharepointOnlineItemsValue(List<ListItem> items, string updateField, string updateValue)
+        {
+            if (string.IsNullOrWhiteSpace(updateField) || string.IsNullOrWhiteSpace(updateValue))
+            {
+                logger.LogError("Invalid update parameters");
+                return null;
+            }
+
+            try
+            {
+                var result = new Dictionary<ListItem, string>();
+
+                foreach (var item in items)
+                {
+                    if (!item.Fields.AdditionalData.ContainsKey(updateField))
+                    {
+                        result.Add(item, $"Field {updateField} is not recognized");
+                        continue;
+                    }
+
+                    var requestBody = new FieldValueSet
+                    {
+                        AdditionalData = new Dictionary<string, object>
+                        {
+                            {
+                                updateField , updateValue
+                            }
+                        },
+                    };
+
+                    try
+                    {
+                        var listItemResult = await graphServiceClient.Sites[item.SharepointIds.SiteId].Lists[item.SharepointIds.ListId].Items[item.SharepointIds.ListItemId].Fields.PatchAsync(requestBody);
+                        result.Add(item, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Add(item, ex.Message);
+                    }
+                }
+
+                return result;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get a list of DriveItems in a folder
+        /// </summary>
+        /// <param name="listItem">ListItem representing the folder that contains the files</param>
+        /// <returns>List of driveitems representing the files in the folder</returns>
+        public async Task<List<DriveItem>> GetListOfFilesInFolder(ListItem listItem)
+        {
+            if (listItem == null || listItem.DriveItem == null)
+            {
+                logger.LogError("invalid listItem of missing driveItem facet");
+                return null;
+            }
+
+            try
+            {
+                var driveItemResult = await graphServiceClient.Drives[listItem.DriveItem.ParentReference.DriveId].Items[listItem.DriveItem.Id].Children.GetAsync();
+                return driveItemResult.Value;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Error getting documents in Folder: {ex.Message}");
                 return null;
             }
         }

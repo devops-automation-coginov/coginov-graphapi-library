@@ -10,5 +10,15 @@ namespace Coginov.GraphApi.Library.Helpers
         {
             return item.Fields.AdditionalData.ToDictionary(x => x.Key, x => x.Value);
         }
+
+        public static string GetDriveItemId(this ListItem item)
+        {
+            return item.DriveItem.Id.Trim();// Fields.AdditionalData.ToDictionary(x => x.Key, x => x.Value);
+        }
+
+        public static  string GetDriveId(this ListItem item)
+        {
+            return item.DriveItem.ParentReference.DriveId;// Fields.AdditionalData.ToDictionary(x => x.Key, x => x.Value);
+        }
     }
 }
