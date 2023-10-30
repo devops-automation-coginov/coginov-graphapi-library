@@ -758,13 +758,20 @@ namespace Coginov.GraphApi.Library.Services
                     return null;
                 }
 
+                searchFilter ??= $"fields/{searchField} eq '{searchValue}'";
+
                 var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
                 {
                     requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
-                    requestConfiguration.QueryParameters.Filter = "fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder'";
-                    requestConfiguration.QueryParameters.Filter = searchFilter ?? $"fields/{searchField} eq '{searchValue}'";
+                    requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and {searchFilter}";
                     requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                });
+
+                folders.Value.ForEach(x =>
+                {
+                    x.Fields.AdditionalData["DriveId"] = x.GetDriveId();
+                    x.Fields.AdditionalData["DriveItemId"] = x.GetDriveItemId();
                 });
 
                 return folders.Value;
