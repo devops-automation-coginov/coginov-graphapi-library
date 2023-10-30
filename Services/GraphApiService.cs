@@ -784,86 +784,14 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Update one field in a document library with a new value
-        /// </summary>
-        /// <param name="siteUrl">Url of the Sharepoint site. e.g: https://coginovportal.sharepoint.com/sites/Dev-JC</param>
-        /// <param name="docLibrary">Display name of the document library. e.g: "Documenst Test"</param>
-        /// <param name="updateField">Field to be updated</param>
-        /// <param name="updateValue">New value for the field</param>
-        /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
-        public async Task<Dictionary<ListItem, string>> UpdateSharepointOnlineFoldersValue(string siteUrl, string docLibrary, string updateField, string updateValue)
-        {
-            if (string.IsNullOrWhiteSpace(updateField) || string.IsNullOrWhiteSpace(updateValue))
-            {
-                logger.LogError("Invalid update parameters");
-                return null;
-            }
-
-            try
-            {
-                var siteId = await GetSiteId(siteUrl);
-                if (string.IsNullOrWhiteSpace(siteId))
-                {
-                    return null;
-                }
-
-                var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
-                {
-                    requestConfiguration.QueryParameters.Expand = new string[] { "fields" };
-                    requestConfiguration.QueryParameters.Filter = "fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder'";
-                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
-                });
-
-                var result = new Dictionary<ListItem, string>();
-
-                foreach (var folder in folders.Value) 
-                {
-                    if (!folder.Fields.AdditionalData.ContainsKey(updateField))
-                    {
-                        result.Add(folder, $"Field {updateField} is not recognized");
-                        continue;
-                    }
-
-                    var requestBody = new FieldValueSet
-                    {
-                        AdditionalData = new Dictionary<string, object>
-                        {
-                            {
-                                updateField , updateValue
-                            }
-                        },
-                    };
-
-                    try
-                    {
-                        var listItemResult = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items[folder.Id].Fields.PatchAsync(requestBody);
-                        result.Add(folder, null);
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Add(folder, ex.Message);
-                    }
-                }
-
-                return result;
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return null;
-            }
-        }
-
-        /// <summary>
         /// Update one field in a list of documents with a new value
         /// </summary>
         /// <param name="items">List of items to be updated</param>
-        /// <param name="updateField">Field to be updated</param>
-        /// <param name="updateValue">New value for the field</param>
+        /// <param name="columnKeyValues">Dictionary containing list of columns and values to be updated</param>
         /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
-        public async Task<Dictionary<ListItem, string>> UpdateSharepointOnlineItemsValue(List<ListItem> items, string updateField, string updateValue)
+        public async Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<ListItem> items, Dictionary<string, object> columnKeyValues)
         {
-            if (string.IsNullOrWhiteSpace(updateField) || string.IsNullOrWhiteSpace(updateValue))
+            if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
             {
                 logger.LogError("Invalid update parameters");
                 return null;
@@ -872,23 +800,13 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var result = new Dictionary<ListItem, string>();
+                var columnKeys = columnKeyValues.Keys;
 
                 foreach (var item in items)
                 {
-                    if (!item.Fields.AdditionalData.ContainsKey(updateField))
-                    {
-                        result.Add(item, $"Field {updateField} is not recognized");
-                        continue;
-                    }
-
                     var requestBody = new FieldValueSet
                     {
-                        AdditionalData = new Dictionary<string, object>
-                        {
-                            {
-                                updateField , updateValue
-                            }
-                        },
+                        AdditionalData = columnKeyValues
                     };
 
                     try
@@ -912,22 +830,62 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Get a list of DriveItems in a folder
+        /// Update one field in a list of documents with a new value
         /// </summary>
-        /// <param name="listItem">ListItem representing the folder that contains the files</param>
-        /// <returns>List of driveitems representing the files in the folder</returns>
-        public async Task<List<DriveItem>> GetListOfFilesInFolder(ListItem listItem)
+        /// <param name="items">List of items to be updated</param>
+        /// <param name="columnKeyValues">Dictionary containing list of columns and values to be updated</param>
+        /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
+        public async Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<DriveItemInfo> items, Dictionary<string, object> columnKeyValues)
         {
-            if (listItem == null || listItem.DriveItem == null)
+            if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
             {
-                logger.LogError("invalid listItem of missing driveItem facet");
+                logger.LogError("Invalid update parameters");
                 return null;
             }
 
             try
             {
-                var driveItemResult = await graphServiceClient.Drives[listItem.DriveItem.ParentReference.DriveId].Items[listItem.DriveItem.Id].Children.GetAsync();
-                return driveItemResult.Value;
+                var listItems = new List<ListItem>();
+
+                foreach (var item in items)
+                {
+                    var listItemResult = await graphServiceClient.Drives[item.DriveId].Items[item.DriveItemId].ListItem.GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
+                        requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
+                        requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                    });
+
+                    listItems.Add(listItemResult);
+                }
+
+                return await UpdateSharePointOnlineItemFieldValue(listItems, columnKeyValues);
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get a list of DriveItems in a folder
+        /// </summary>
+        /// <param name="driveItem">Object representing the folder that contains the files</param>
+        /// <returns>List of driveitems representing the files in the folder</returns>
+        public async Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem)
+        {
+            if (driveItem == null)
+            {
+                logger.LogError("Invalid driveItem info");
+                return null;
+            }
+
+            try
+            {
+                var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children.GetAsync();
+                
+                return driveItemResult.Value.Where(x => x.Folder == null).ToList();
             }
             catch (Exception ex)
             {
