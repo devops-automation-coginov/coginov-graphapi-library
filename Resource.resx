@@ -183,6 +183,9 @@
   <data name="ErrorRetrievingDocumentIds" xml:space="preserve">
     <value>Error retrieving Document Ids</value>
   </data>
+  <data name="ErrorRetrievingDocuments" xml:space="preserve">
+    <value>Error retrieving documents in Folder</value>
+  </data>
   <data name="ErrorRetrievingDriveItem" xml:space="preserve">
     <value>Error retrieving Drive Item</value>
   </data>
@@ -213,8 +216,14 @@
   <data name="ErrorSavingExchangeMessage" xml:space="preserve">
     <value>Error saving Exchange message to file system</value>
   </data>
+  <data name="ErrorSearchingFolders" xml:space="preserve">
+    <value>Error searching folders in Sharepoint document library</value>
+  </data>
   <data name="ErrorSendingEmail" xml:space="preserve">
     <value>Error sending email to recipient</value>
+  </data>
+  <data name="ErrorUpdatingSharepointItems" xml:space="preserve">
+    <value>Error updating items in Sharepoint document library</value>
   </data>
   <data name="FileAlreadyExists" xml:space="preserve">
     <value>File already exists. Retrying with another name.</value>
@@ -224,6 +233,12 @@
   </data>
   <data name="GraphRetryAttempts" xml:space="preserve">
     <value>Retrying in {0} seconds. Attepmt: {1}</value>
+  </data>
+  <data name="InvalidSearchParameters" xml:space="preserve">
+    <value>Invalid search parameters provided</value>
+  </data>
+  <data name="InvalidUpdateParameters" xml:space="preserve">
+    <value>Invalid items update parameters</value>
   </data>
   <data name="LibrariesNotFound" xml:space="preserve">
     <value>Specified document libraries not found</value>

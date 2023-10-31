@@ -739,13 +739,13 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="searchValue">Value to match in the specified field. Optional if searchFilter is specified</param>
         /// <param name="searchFilter">Optional search condition. Superseeds searchField/searchValue combination </param>
         /// <returns>List of field values for found folders</returns>
-        public async Task<List<ListItem>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null)
+        public async Task<List<ListItem>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null, int top = 200)
         {
             if (string.IsNullOrWhiteSpace(searchFilter))
             {
                 if (string.IsNullOrWhiteSpace(searchField) || string.IsNullOrWhiteSpace(searchValue))
                 {
-                    logger.LogError("Invalid search parameters");
+                    logger.LogError(Resource.InvalidSearchParameters);
                     return null;
                 }
             }
@@ -765,6 +765,7 @@ namespace Coginov.GraphApi.Library.Services
                     requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
                     requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and {searchFilter}";
                     requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
+                    requestConfiguration.QueryParameters.Top = top;
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
 
@@ -778,7 +779,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex)
             {
-                logger.LogError($"{"Error retrieving folder from Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
                 return null;
             }
         }
@@ -793,7 +794,7 @@ namespace Coginov.GraphApi.Library.Services
         {
             if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
             {
-                logger.LogError("Invalid update parameters");
+                logger.LogError(Resource.InvalidUpdateParameters);
                 return null;
             }
 
@@ -824,7 +825,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex)
             {
-                logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
                 return null;
             }
         }
@@ -839,7 +840,7 @@ namespace Coginov.GraphApi.Library.Services
         {
             if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
             {
-                logger.LogError("Invalid update parameters");
+                logger.LogError(Resource.ErrorUpdatingSharepointItems);
                 return null;
             }
 
@@ -863,7 +864,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex)
             {
-                logger.LogError($"{"Error updating folders in Sharepoint"}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
                 return null;
             }
         }
@@ -889,7 +890,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"Error getting documents in Folder: {ex.Message}");
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
                 return null;
             }
         }
