@@ -508,7 +508,7 @@ namespace Coginov.GraphApi.Library.Services
                     if (document == null || document.File == null)
                         return null;
 
-                    var drive = drivesConnectionInfo.First(x => x.Id == driveId);
+                    var drive = await GetSharePointDriveConnectionInfo(driveId);
                     var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
 
                     string path = Path.Combine(downloadLocation, drive.Root, drive.Name, documentPath, document.Name);
@@ -785,7 +785,7 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Update one field in a list of documents with a new value
+        /// Update one or more columns in a list of documents with new values
         /// </summary>
         /// <param name="items">List of items to be updated</param>
         /// <param name="columnKeyValues">Dictionary containing list of columns and values to be updated</param>
@@ -831,7 +831,7 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Update one field in a list of documents with a new value
+        /// Update one or more columns in a list of documents with new values
         /// </summary>
         /// <param name="items">List of items to be updated</param>
         /// <param name="columnKeyValues">Dictionary containing list of columns and values to be updated</param>
@@ -870,11 +870,12 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Get a list of DriveItems in a folder
+        /// Get the list of files in a folder. Will return all files, retrieves items on batches of 'batchSize'
         /// </summary>
         /// <param name="driveItem">Object representing the folder that contains the files</param>
+        /// <param name="batchSize">Number of files to download in each operation</param>
         /// <returns>List of driveitems representing the files in the folder</returns>
-        public async Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem)
+        public async Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, int batchSize = 100)
         {
             if (driveItem == null)
             {
@@ -884,9 +885,23 @@ namespace Coginov.GraphApi.Library.Services
 
             try
             {
-                var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children.GetAsync();
+                var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Top = batchSize;
+                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                });
+
+                var driveItemList = new List<DriveItem>();
+                var pageIterator = PageIterator<DriveItem, DriveItemCollectionResponse>.CreatePageIterator(graphServiceClient, driveItemResult, (item) => 
+                { 
+                    if (item.Folder == null)
+                        driveItemList.Add(item);
+                    return true; 
+                });
+
+                await pageIterator.IterateAsync();
                 
-                return driveItemResult.Value.Where(x => x.Folder == null).ToList();
+                return driveItemList;
             }
             catch (Exception ex)
             {
@@ -1458,6 +1473,31 @@ namespace Coginov.GraphApi.Library.Services
                 //Invalid token format
                 return null;
             }
+        }
+
+        private async Task<DriveConnectionInfo> GetSharePointDriveConnectionInfo(string driveId)
+        {
+            var driveInfo = drivesConnectionInfo?.FirstOrDefault(x => x.Id == driveId);
+            if (driveInfo != null)
+                return driveInfo;
+
+            var drive = await graphServiceClient.Drives[driveId].GetAsync();
+            
+            driveInfo = new DriveConnectionInfo
+            {
+                Id = drive.Id,
+                Root = siteUrl.GetFolderNameFromSpoUrl(),
+                Path = drive.WebUrl,
+                Name = drive.Name,
+                DownloadCompleted = false
+            };
+
+            if (drivesConnectionInfo == null)
+                drivesConnectionInfo = new List<DriveConnectionInfo>();
+
+            drivesConnectionInfo.Add(driveInfo);
+
+            return driveInfo;
         }
 
         #endregion
