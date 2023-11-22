@@ -763,7 +763,7 @@ namespace Coginov.GraphApi.Library.Services
                 var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
                 {
                     requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
-                    requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and {searchFilter}";
+                    requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and ({searchFilter})";
                     requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
                     requestConfiguration.QueryParameters.Top = top;
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
