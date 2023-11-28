@@ -1070,6 +1070,8 @@ namespace Coginov.GraphApi.Library.Services
 
                     // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
                     var clientSecretCredential = new ClientSecretCredential(authConfig.Tenant, authConfig.ClientId, authConfig.ClientSecret, options);
+                    // Try to get a token to make sure the credentials provided work
+                    await clientSecretCredential.GetTokenAsync(new TokenRequestContext(scopes));
                     graphServiceClient = new GraphServiceClient(clientSecretCredential, scopes);
                 }
                 else
@@ -1082,7 +1084,8 @@ namespace Coginov.GraphApi.Library.Services
                     var clientCertificate = new X509Certificate2(authConfig.CertificateName);
                     // https://learn.microsoft.com/dotnet/api/azure.identity.clientcertificatecredential
                     var clientCertCredential = new ClientCertificateCredential(authConfig.Tenant, authConfig.ClientId, clientCertificate, options);
-
+                    // Try to get a token to make sure the credentials provided work
+                    await clientCertCredential.GetTokenAsync(new TokenRequestContext(scopes));
                     graphServiceClient = new GraphServiceClient(clientCertCredential, scopes);
                 }
             }
