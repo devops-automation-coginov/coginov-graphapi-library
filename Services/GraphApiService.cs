@@ -48,6 +48,7 @@ namespace Coginov.GraphApi.Library.Services
         private MsalCacheHelper msalCacheHelper;
         private IPublicClientApplication pca;
         private IConfidentialClientApplication cca;
+        private InteractiveBrowserCredential ibc;
 
         // SharePointOnline
         private string siteUrl;
@@ -161,6 +162,56 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
+        public async Task<string> GetTokenApplicationPermissions(AuthenticationConfig authenticationConfig)
+        {
+            try
+            {
+                string[] scopes = new string[] { $"{authenticationConfig.ApiUrl}.default" };
+
+                var options = new ClientSecretCredentialOptions
+                {
+                    AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+                };
+
+                // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
+                var clientSecretCredential = new ClientSecretCredential(authenticationConfig.Tenant, authenticationConfig.ClientId, authenticationConfig.ClientSecret, options);
+                var authResult = await clientSecretCredential.GetTokenAsync(new TokenRequestContext(scopes));
+
+                return authResult.Token;
+            }
+            catch(Exception ex)
+            {
+                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes)
+        {
+            try
+            {
+                // https://learn.microsoft.com/dotnet/api/azure.identity.interactivebrowsercredential
+                var options = new InteractiveBrowserCredentialOptions
+                {
+                    TenantId = tenantId,
+                    ClientId = clientId,
+                    AuthorityHost = new Uri($"https://login.microsoftonline.com/{tenantId}/v2.0"),
+                    RedirectUri = new Uri("http://localhost")
+                };
+
+                ibc ??= new InteractiveBrowserCredential(options);
+
+                var context = new TokenRequestContext(scopes);
+                var authResult = await ibc.GetTokenAsync(context);
+
+                return authResult.Token;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}");
+                return null;
+            }
+        }
 
         public async Task<string> GetUserId(string user)
         {
