@@ -824,7 +824,7 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     x.Fields.AdditionalData["DriveId"] = x.GetDriveId();
                     x.Fields.AdditionalData["DriveItemId"] = x.GetDriveItemId();
-                    x.Fields.AdditionalData["CreatetByName"] = x.GetCreatedByName();
+                    x.Fields.AdditionalData["CreatedByName"] = x.GetCreatedByName();
                     x.Fields.AdditionalData["CreatetByEmail"] = x.GetCreatedByEmail();
                     x.Fields.AdditionalData["ModifiedByName"] = x.GetModifiedByName();
                     x.Fields.AdditionalData["ModifiedByEmail"] = x.GetModifiedByEmail();

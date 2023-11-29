@@ -33,6 +33,7 @@ namespace Coginov.GraphApi.Library.Helpers
             };
         }
 
+        // Use this method to obtain the DriveItemInfo from a serialized list of fields (Folder)
         public static DriveItemInfo GetDriveItemInfoFromSerializedFields(this string serializedDictionary)
         {
             try
@@ -54,7 +55,8 @@ namespace Coginov.GraphApi.Library.Helpers
                 return null;
             }
         }
-
+        
+        // Use this method to obtain the DriveItemInfo from a serialized Graph DriveItem (File)
         public static DriveItemInfo GetDriveItemInfoFromSerializedDriveItem(this string serializedDriveItem)
         {
             try
