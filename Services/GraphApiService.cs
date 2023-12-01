@@ -162,19 +162,17 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<string> GetTokenApplicationPermissions(AuthenticationConfig authenticationConfig)
+        public async Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes)
         {
             try
             {
-                string[] scopes = new string[] { $"{authenticationConfig.ApiUrl}.default" };
-
                 var options = new ClientSecretCredentialOptions
                 {
                     AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
                 };
 
                 // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
-                var clientSecretCredential = new ClientSecretCredential(authenticationConfig.Tenant, authenticationConfig.ClientId, authenticationConfig.ClientSecret, options);
+                var clientSecretCredential = new ClientSecretCredential(tenantId, clientId, clientSecret, options);
                 var authResult = await clientSecretCredential.GetTokenAsync(new TokenRequestContext(scopes));
 
                 return authResult.Token;
@@ -825,7 +823,7 @@ namespace Coginov.GraphApi.Library.Services
                     x.Fields.AdditionalData["DriveId"] = x.GetDriveId();
                     x.Fields.AdditionalData["DriveItemId"] = x.GetDriveItemId();
                     x.Fields.AdditionalData["CreatedByName"] = x.GetCreatedByName();
-                    x.Fields.AdditionalData["CreatetByEmail"] = x.GetCreatedByEmail();
+                    x.Fields.AdditionalData["CreatedByEmail"] = x.GetCreatedByEmail();
                     x.Fields.AdditionalData["ModifiedByName"] = x.GetModifiedByName();
                     x.Fields.AdditionalData["ModifiedByEmail"] = x.GetModifiedByEmail();
                 });
