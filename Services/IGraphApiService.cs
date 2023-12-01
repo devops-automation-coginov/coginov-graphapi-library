@@ -35,7 +35,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<ListItem> items, Dictionary<string, object> columnKeyValues);
         Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<DriveItemInfo> items, Dictionary<string, object> columnKeyValues);
         Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, int batchSize = 100);
-        Task<string> GetTokenApplicationPermissions(AuthenticationConfig authConfig);
+        Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes);
         Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes);
     }
 }
