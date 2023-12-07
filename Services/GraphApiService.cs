@@ -347,7 +347,7 @@ namespace Coginov.GraphApi.Library.Services
                     filter = $"{(filter)} and (resourceProvisioningOptions / Any(x: x eq 'Team'))";
                     groups = await graphServiceClient.Groups.GetAsync(requestConfiguration =>
                                         {
-                                            requestConfiguration.QueryParameters.Filter = "resourceProvisioningOptions/Any(x:x eq 'Team')";
+                                            requestConfiguration.QueryParameters.Filter = filter;
                                         });
 
                     if (groups.OdataCount == 0)
