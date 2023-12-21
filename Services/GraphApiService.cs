@@ -865,7 +865,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     try
                     {
-                        var listItemResult = await graphServiceClient.Sites[item.SharepointIds.SiteId].Lists[item.SharepointIds.ListId].Items[item.SharepointIds.ListItemId].Fields.PatchAsync(requestBody);
+                        var listItemResult = await graphServiceClient.Sites[siteId].Lists[item.SharepointIds.ListId].Items[item.SharepointIds.ListItemId].Fields.PatchAsync(requestBody);
                         result.Add(item, null);
                     }
                     catch (Exception ex)
