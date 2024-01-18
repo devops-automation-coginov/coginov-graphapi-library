@@ -31,6 +31,7 @@ using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 using System.Reflection.Metadata;
 using Microsoft.Graph.Models.Security;
+using Microsoft.Kiota.Abstractions;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -732,6 +733,49 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Get a list of Sharepoint sites in a tenant along with a list of document libraries
+        /// </summary>
+        /// <param name="excludePersonalSites">If true method will not return Sharepoint Online personal sites</param>
+        /// <returns>A dictionary containing site Urls as the Key and a list of its respectives DocumentLibraries as the Value</returns>
+        public async Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false)
+        {
+            try
+            {
+                // First add all subsites of the root site
+                var sites = await GetSubsites(siteId);
+
+                // Then add all site collections
+                var filter = excludePersonalSites ? "IsPersonalSite eq false" : string.Empty;
+                var sitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Filter = filter;
+                });
+
+                if (sitesResponse != null && sitesResponse.Value.Any())
+                    sites.AddRange(sitesResponse.Value);
+
+                var nextLink = sitesResponse.OdataNextLink;
+                while (nextLink != null)
+                {
+                    var nextSitesResponse = await graphServiceClient.RequestAdapter.SendAsync(new RequestInformation { UrlTemplate = nextLink }, (parseNode) => new SiteCollectionResponse());
+                    if (nextSitesResponse != null && nextSitesResponse.Value.Any())
+                    {
+                        sites.AddRange(nextSitesResponse.Value);
+                        nextLink = nextSitesResponse.OdataNextLink;
+                    }
+                }
+
+                return await GetSiteAndDocLibsDictionary(sites.ToList());
+
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
         #region Exchange Online methods
 
         public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
@@ -1037,6 +1081,71 @@ namespace Coginov.GraphApi.Library.Services
         #endregion
 
         #region Private Methods
+
+        private async Task<List<Site>> GetSubsites(string siteId)
+        {
+            var sites = new List<Site> { await graphServiceClient.Sites[siteId].GetAsync() };
+            var subsites = await graphServiceClient.Sites[siteId].Sites.GetAsync();
+
+            if (subsites == null || !subsites.Value.Any())
+            {
+                return sites;
+            }
+
+            foreach ( var site in subsites.Value )
+            {
+                sites.AddRange(await GetSubsites(site.Id));
+            }
+
+            return sites;
+        }
+
+        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites)
+        {
+            if (sites == null || !sites.Any()) { return null; }
+
+            try
+            {
+                var batchSize = 20;
+                var index = 0;
+                var siteDocsDictionary = new Dictionary<string, List<string>>();
+
+                var batch = sites.Skip(index * batchSize).Take(batchSize).ToList();
+                while (batch.Any())
+                {
+                    var batchRequestContent = new BatchRequestContentCollection(graphServiceClient);
+                    var requestList = new List<RequestInformation>();
+                    var requestIdDictionary = new Dictionary<Site, string>();
+
+                    foreach (var item in batch)
+                    {
+                        if (siteDocsDictionary.ContainsKey(item.WebUrl))
+                            { continue; }
+
+                        var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation();
+                        requestList.Add(request);
+                        requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
+                    }
+
+                    var drivesResponse = await graphServiceClient.Batch.PostAsync(batchRequestContent);
+
+                    foreach (var item in requestIdDictionary)
+                    {
+                        var drives = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Value.Select(x => x.Name).ToList());
+                    }
+
+                    batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
+                };
+
+                return siteDocsDictionary;
+            }
+            catch(Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
 
         private async Task<Drive> GetDriveRoot(string driveId)
         {
