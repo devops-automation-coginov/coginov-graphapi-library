@@ -298,15 +298,24 @@ namespace Coginov.GraphApi.Library.Services
                 else
                 {
                     var filter = string.Join(" or ", teams.Select(x => $"displayName eq '{x.Trim()}'"));
-                    filter = $"{(filter)} and (resourceProvisioningOptions / Any(x: x eq 'Team'))";
+                    filter = $"({filter}) and resourceProvisioningOptions / Any(x: x eq 'Team')";
                     groups = await graphServiceClient.Groups.GetAsync(requestConfiguration =>
                                         {
                                             requestConfiguration.QueryParameters.Filter = filter;
                                         });
 
-                    if (groups.OdataCount == 0)
+                    if (groups.Value.Count == 0)
+                    {
                         // If no teams found log error
                         logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", teams)}");
+                    } 
+                    else if (groups.Value.Count < teams.Count())
+                    {
+                        // If any of the teams was not found log error
+                        var foundTeams = groups.Value.Select(x => x.DisplayName).ToList();
+                        var notFoundTeams = teams.Where(x => !foundTeams.Contains(x));
+                        logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", notFoundTeams)}");
+                    }
                 }
 
                 foreach (var group in groups.Value)
