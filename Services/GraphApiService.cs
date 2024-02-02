@@ -754,6 +754,10 @@ namespace Coginov.GraphApi.Library.Services
                 // First add all subsites of the root site
                 var sites = await GetSubsites(siteId);
 
+                // If the Url provided is not a tenant sharepoint root Url we will exclude personal sites anyway
+                var isTenantRoot = siteUrl.IsRootUrl();
+                excludePersonalSites |= !isTenantRoot;
+
                 // Then add all site collections
                 var filter = excludePersonalSites ? "IsPersonalSite eq false" : string.Empty;
                 var sitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsync((requestConfiguration) =>
@@ -773,6 +777,15 @@ namespace Coginov.GraphApi.Library.Services
                         sites.AddRange(nextSitesResponse.Value);
                         nextLink = nextSitesResponse.OdataNextLink;
                     }
+                }
+
+                // Remove duplicates
+                sites = sites.DistinctBy(x => x.WebUrl).ToList();
+
+                // If it is not the tenant root url filter out sites outside current site url
+                if (isTenantRoot)
+                {
+                    sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl)).ToList();
                 }
 
                 return await GetSiteAndDocLibsDictionary(sites.ToList());
@@ -1128,9 +1141,6 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var item in batch)
                     {
-                        if (siteDocsDictionary.ContainsKey(item.WebUrl))
-                            { continue; }
-
                         var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation();
                         requestList.Add(request);
                         requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
@@ -1140,6 +1150,9 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var item in requestIdDictionary)
                     {
+                        if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
+                            continue;
+
                         var drives = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
                         siteDocsDictionary.Add(item.Key.WebUrl, drives.Value.Select(x => x.Name).ToList());
                     }
