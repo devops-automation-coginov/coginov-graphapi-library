@@ -747,7 +747,7 @@ namespace Coginov.GraphApi.Library.Services
         /// </summary>
         /// <param name="excludePersonalSites">If true method will not return Sharepoint Online personal sites</param>
         /// <returns>A dictionary containing site Urls as the Key and a list of its respectives DocumentLibraries as the Value</returns>
-        public async Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false)
+        public async Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false, bool excludeSystemDocLibs = false)
         {
             try
             {
@@ -788,7 +788,7 @@ namespace Coginov.GraphApi.Library.Services
                     sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl)).ToList();
                 }
 
-                return await GetSiteAndDocLibsDictionary(sites.ToList());
+                return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
 
             }
             catch (ODataError ex)
@@ -1122,7 +1122,7 @@ namespace Coginov.GraphApi.Library.Services
             return sites;
         }
 
-        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites)
+        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
         {
             if (sites == null || !sites.Any()) { return null; }
 
@@ -1141,21 +1141,23 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var item in batch)
                     {
-                        var request = graphServiceClient.Sites[item.Id].Lists.ToGetRequestInformation();
+                        var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Select = new[] { excludeSystemDocLibs ? "" : "*,system" };
+                        });
                         requestList.Add(request);
                         requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
                     }
 
-                    var listResponse = await graphServiceClient.Batch.PostAsync(batchRequestContent);
+                    var drivesResponse = await graphServiceClient.Batch.PostAsync(batchRequestContent);
 
                     foreach (var item in requestIdDictionary)
                     {
                         if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
                             continue;
 
-                        var lists = await listResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
-                        var drives = lists.Value.Where(x => x.List.AdditionalData["template"].ToString() == "documentLibrary").ToList();
-                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.AdditionalData["displayName"].ToString()).ToList());
+                        var drives = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Value.Select(x => x.Name).ToList());
                     }
 
                     batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
