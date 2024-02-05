@@ -29,5 +29,12 @@ namespace Coginov.GraphApi.Library.Helpers
                 return filePath;
             }
         }
+
+        public static bool IsRootUrl(this string url)
+        {
+            var uri = new Uri(url);
+            var path = uri.GetComponents(UriComponents.Path, UriFormat.Unescaped);
+            return path.Length == 0;
+        }
     }
 }

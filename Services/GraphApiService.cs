@@ -747,12 +747,16 @@ namespace Coginov.GraphApi.Library.Services
         /// </summary>
         /// <param name="excludePersonalSites">If true method will not return Sharepoint Online personal sites</param>
         /// <returns>A dictionary containing site Urls as the Key and a list of its respectives DocumentLibraries as the Value</returns>
-        public async Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false)
+        public async Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false, bool excludeSystemDocLibs = false)
         {
             try
             {
                 // First add all subsites of the root site
                 var sites = await GetSubsites(siteId);
+
+                // If the Url provided is not a tenant sharepoint root Url we will exclude personal sites anyway
+                var isTenantRoot = siteUrl.IsRootUrl();
+                excludePersonalSites |= !isTenantRoot;
 
                 // Then add all site collections
                 var filter = excludePersonalSites ? "IsPersonalSite eq false" : string.Empty;
@@ -775,7 +779,16 @@ namespace Coginov.GraphApi.Library.Services
                     }
                 }
 
-                return await GetSiteAndDocLibsDictionary(sites.ToList());
+                // Remove duplicates
+                sites = sites.DistinctBy(x => x.WebUrl).ToList();
+
+                // If it is not the tenant root url filter out sites outside current site url
+                if (!isTenantRoot)
+                {
+                    sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl)).ToList();
+                }
+
+                return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
 
             }
             catch (ODataError ex)
@@ -1109,7 +1122,7 @@ namespace Coginov.GraphApi.Library.Services
             return sites;
         }
 
-        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites)
+        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
         {
             if (sites == null || !sites.Any()) { return null; }
 
@@ -1128,10 +1141,10 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var item in batch)
                     {
-                        if (siteDocsDictionary.ContainsKey(item.WebUrl))
-                            { continue; }
-
-                        var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation();
+                        var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Select = new[] { excludeSystemDocLibs ? "" : "*,system" };
+                        });
                         requestList.Add(request);
                         requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
                     }
@@ -1140,6 +1153,9 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var item in requestIdDictionary)
                     {
+                        if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
+                            continue;
+
                         var drives = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
                         siteDocsDictionary.Add(item.Key.WebUrl, drives.Value.Select(x => x.Name).ToList());
                     }
