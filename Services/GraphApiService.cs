@@ -783,7 +783,7 @@ namespace Coginov.GraphApi.Library.Services
                 sites = sites.DistinctBy(x => x.WebUrl).ToList();
 
                 // If it is not the tenant root url filter out sites outside current site url
-                if (isTenantRoot)
+                if (!isTenantRoot)
                 {
                     sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl)).ToList();
                 }
@@ -1141,20 +1141,21 @@ namespace Coginov.GraphApi.Library.Services
 
                     foreach (var item in batch)
                     {
-                        var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation();
+                        var request = graphServiceClient.Sites[item.Id].Lists.ToGetRequestInformation();
                         requestList.Add(request);
                         requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
                     }
 
-                    var drivesResponse = await graphServiceClient.Batch.PostAsync(batchRequestContent);
+                    var listResponse = await graphServiceClient.Batch.PostAsync(batchRequestContent);
 
                     foreach (var item in requestIdDictionary)
                     {
                         if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
                             continue;
 
-                        var drives = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
-                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Value.Select(x => x.Name).ToList());
+                        var lists = await listResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                        var drives = lists.Value.Where(x => x.List.AdditionalData["template"].ToString() == "documentLibrary").ToList();
+                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.AdditionalData["displayName"].ToString()).ToList());
                     }
 
                     batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
