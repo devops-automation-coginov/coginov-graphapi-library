@@ -751,41 +751,48 @@ namespace Coginov.GraphApi.Library.Services
         {
             try
             {
-                // First add all subsites of the root site
-                var sites = await GetSubsites(siteId);
+                var requestInformation = graphServiceClient.Sites.ToGetRequestInformation(requestConfiguration =>
+                {
+                    requestConfiguration.QueryParameters.Select = new[] { "Id", "WebUrl", "Name", "DisplayName" };
+                    requestConfiguration.QueryParameters.Top = 200;
+                });
+                requestInformation.UrlTemplate = requestInformation.UrlTemplate.Replace("%24search", "search");
+                requestInformation.QueryParameters.Add("search", "*");
+                var sitesReponse = await graphServiceClient.RequestAdapter.SendAsync<SiteCollectionResponse>(requestInformation, SiteCollectionResponse.CreateFromDiscriminatorValue);
+                var sites = new List<Site>();
+                var sitesIterator = PageIterator<Site, SiteCollectionResponse>.CreatePageIterator(graphServiceClient, sitesReponse, (site) => { sites.Add(site); return true; });
+                await sitesIterator.IterateAsync();
 
                 // If the Url provided is not a tenant sharepoint root Url we will exclude personal sites anyway
                 var isTenantRoot = siteUrl.IsRootUrl();
                 excludePersonalSites |= !isTenantRoot;
 
-                // Then add all site collections
-                var filter = excludePersonalSites ? "IsPersonalSite eq false" : string.Empty;
-                var sitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsync((requestConfiguration) =>
+                if (!excludePersonalSites)
                 {
-                    requestConfiguration.QueryParameters.Filter = filter;
-                });
-
-                if (sitesResponse != null && sitesResponse.Value.Any())
-                    sites.AddRange(sitesResponse.Value);
-
-                var nextLink = sitesResponse.OdataNextLink;
-                while (nextLink != null)
-                {
-                    var nextSitesResponse = await graphServiceClient.RequestAdapter.SendAsync(new RequestInformation { UrlTemplate = nextLink }, (parseNode) => new SiteCollectionResponse());
-                    if (nextSitesResponse != null && nextSitesResponse.Value.Any())
+                    var sitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsync((requestConfiguration) =>
                     {
-                        sites.AddRange(nextSitesResponse.Value);
-                        nextLink = nextSitesResponse.OdataNextLink;
+                        requestConfiguration.QueryParameters.Filter = "IsPersonalSite eq true";
+                    });
+
+                    if (sitesResponse != null && sitesResponse.Value.Any())
+                        sites.AddRange(sitesResponse.Value);
+
+                    var nextLink = sitesResponse.OdataNextLink;
+                    while (nextLink != null)
+                    {
+                        var nextSitesResponse = await graphServiceClient.RequestAdapter.SendAsync(new RequestInformation { UrlTemplate = nextLink }, (parseNode) => new SiteCollectionResponse());
+                        if (nextSitesResponse != null && nextSitesResponse.Value.Any())
+                        {
+                            sites.AddRange(nextSitesResponse.Value);
+                            nextLink = nextSitesResponse.OdataNextLink;
+                        }
                     }
                 }
-
-                // Remove duplicates
-                sites = sites.DistinctBy(x => x.WebUrl).ToList();
 
                 // If it is not the tenant root url filter out sites outside current site url
                 if (!isTenantRoot)
                 {
-                    sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl)).ToList();
+                    sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl, StringComparison.InvariantCultureIgnoreCase)).ToList();
                 }
 
                 return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
@@ -1104,24 +1111,6 @@ namespace Coginov.GraphApi.Library.Services
 
         #region Private Methods
 
-        private async Task<List<Site>> GetSubsites(string siteId)
-        {
-            var sites = new List<Site> { await graphServiceClient.Sites[siteId].GetAsync() };
-            var subsites = await graphServiceClient.Sites[siteId].Sites.GetAsync();
-
-            if (subsites == null || !subsites.Value.Any())
-            {
-                return sites;
-            }
-
-            foreach ( var site in subsites.Value )
-            {
-                sites.AddRange(await GetSubsites(site.Id));
-            }
-
-            return sites;
-        }
-
         private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
         {
             if (sites == null || !sites.Any()) { return null; }
@@ -1143,7 +1132,7 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation(requestConfiguration =>
                         {
-                            requestConfiguration.QueryParameters.Select = new[] { excludeSystemDocLibs ? "" : "*,system" };
+                            requestConfiguration.QueryParameters.Select = excludeSystemDocLibs ? Array.Empty<string>() : new string[] { "name", "system", "weburl" };
                         });
                         requestList.Add(request);
                         requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
@@ -1156,8 +1145,9 @@ namespace Coginov.GraphApi.Library.Services
                         if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
                             continue;
 
-                        var drives = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
-                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Value.Select(x => x.Name).ToList());
+                        var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                        var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
+                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
                     }
 
                     batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
