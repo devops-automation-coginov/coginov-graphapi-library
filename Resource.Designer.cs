@@ -313,6 +313,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error retrieving Sharepoint Online Sites and Document Libraries.
+        /// </summary>
+        internal static string ErrorRetrievingSpoSites {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingSpoSites", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error Retrieving Teams.
         /// </summary>
         internal static string ErrorRetrievingTeams {
