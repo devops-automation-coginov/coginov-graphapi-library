@@ -29,6 +29,9 @@ using System.Text.RegularExpressions;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
+using System.Reflection.Metadata;
+using Microsoft.Graph.Models.Security;
+using Microsoft.Kiota.Abstractions;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -344,15 +347,24 @@ namespace Coginov.GraphApi.Library.Services
                 else
                 {
                     var filter = string.Join(" or ", teams.Select(x => $"displayName eq '{x.Trim()}'"));
-                    filter = $"{(filter)} and (resourceProvisioningOptions / Any(x: x eq 'Team'))";
+                    filter = $"({filter}) and resourceProvisioningOptions / Any(x: x eq 'Team')";
                     groups = await graphServiceClient.Groups.GetAsync(requestConfiguration =>
                                         {
-                                            requestConfiguration.QueryParameters.Filter = "resourceProvisioningOptions/Any(x:x eq 'Team')";
+                                            requestConfiguration.QueryParameters.Filter = filter;
                                         });
 
-                    if (groups.OdataCount == 0)
+                    if (groups.Value.Count == 0)
+                    {
                         // If no teams found log error
                         logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", teams)}");
+                    } 
+                    else if (groups.Value.Count < teams.Count())
+                    {
+                        // If any of the teams was not found log error
+                        var foundTeams = groups.Value.Select(x => x.DisplayName).ToList();
+                        var notFoundTeams = teams.Where(x => !foundTeams.Contains(x));
+                        logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", notFoundTeams)}");
+                    }
                 }
 
                 foreach (var group in groups.Value)
@@ -776,6 +788,69 @@ namespace Coginov.GraphApi.Library.Services
             {
                 logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Get a list of Sharepoint sites in a tenant along with a list of document libraries
+        /// </summary>
+        /// <param name="excludePersonalSites">If true method will not return Sharepoint Online personal sites</param>
+        /// <returns>A dictionary containing site Urls as the Key and a list of its respectives DocumentLibraries as the Value</returns>
+        public async Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false, bool excludeSystemDocLibs = false)
+        {
+            try
+            {
+                var requestInformation = graphServiceClient.Sites.ToGetRequestInformation(requestConfiguration =>
+                {
+                    requestConfiguration.QueryParameters.Select = new[] { "Id", "WebUrl", "Name", "DisplayName" };
+                    requestConfiguration.QueryParameters.Top = 200;
+                });
+                requestInformation.UrlTemplate = requestInformation.UrlTemplate.Replace("%24search", "search");
+                requestInformation.QueryParameters.Add("search", "*");
+                var sitesReponse = await graphServiceClient.RequestAdapter.SendAsync<SiteCollectionResponse>(requestInformation, SiteCollectionResponse.CreateFromDiscriminatorValue);
+                var sites = new List<Site>();
+                var sitesIterator = PageIterator<Site, SiteCollectionResponse>.CreatePageIterator(graphServiceClient, sitesReponse, (site) => { sites.Add(site); return true; });
+                await sitesIterator.IterateAsync();
+
+                // If the Url provided is not a tenant sharepoint root Url we will exclude personal sites anyway
+                var isTenantRoot = siteUrl.IsRootUrl();
+                excludePersonalSites |= !isTenantRoot;
+
+                if (!excludePersonalSites)
+                {
+                    var sitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Filter = "IsPersonalSite eq true";
+                    });
+
+                    if (sitesResponse != null && sitesResponse.Value.Any())
+                        sites.AddRange(sitesResponse.Value);
+
+                    var nextLink = sitesResponse.OdataNextLink;
+                    while (nextLink != null)
+                    {
+                        var nextSitesResponse = await graphServiceClient.RequestAdapter.SendAsync(new RequestInformation { UrlTemplate = nextLink }, (parseNode) => new SiteCollectionResponse());
+                        if (nextSitesResponse != null && nextSitesResponse.Value.Any())
+                        {
+                            sites.AddRange(nextSitesResponse.Value);
+                            nextLink = nextSitesResponse.OdataNextLink;
+                        }
+                    }
+                }
+
+                // If it is not the tenant root url filter out sites outside current site url
+                if (!isTenantRoot)
+                {
+                    sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                }
+
+                return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
+
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
             }
         }
 
@@ -1271,6 +1346,57 @@ namespace Coginov.GraphApi.Library.Services
         #endregion
 
         #region Private Methods
+
+        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
+        {
+            if (sites == null || !sites.Any()) { return null; }
+
+            try
+            {
+                var batchSize = 20;
+                var index = 0;
+                var siteDocsDictionary = new Dictionary<string, List<string>>();
+
+                var batch = sites.Skip(index * batchSize).Take(batchSize).ToList();
+                while (batch.Any())
+                {
+                    var batchRequestContent = new BatchRequestContentCollection(graphServiceClient);
+                    var requestList = new List<RequestInformation>();
+                    var requestIdDictionary = new Dictionary<Site, string>();
+
+                    foreach (var item in batch)
+                    {
+                        var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Select = excludeSystemDocLibs ? Array.Empty<string>() : new string[] { "name", "system", "weburl" };
+                        });
+                        requestList.Add(request);
+                        requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
+                    }
+
+                    var drivesResponse = await graphServiceClient.Batch.PostAsync(batchRequestContent);
+
+                    foreach (var item in requestIdDictionary)
+                    {
+                        if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
+                            continue;
+
+                        var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                        var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
+                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
+                    }
+
+                    batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
+                };
+
+                return siteDocsDictionary;
+            }
+            catch(Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
 
         private async Task<Drive> GetDriveRoot(string driveId)
         {

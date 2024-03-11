@@ -204,6 +204,9 @@
   <data name="ErrorRetrievingSiteId" xml:space="preserve">
     <value>Error retrieving Site Id</value>
   </data>
+  <data name="ErrorRetrievingSpoSites" xml:space="preserve">
+    <value>Error retrieving Sharepoint Online Sites and Document Libraries</value>
+  </data>
   <data name="ErrorRetrievingTeams" xml:space="preserve">
     <value>Error Retrieving Teams</value>
   </data>
