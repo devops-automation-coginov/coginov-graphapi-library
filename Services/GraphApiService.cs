@@ -928,7 +928,7 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="driveItem">Object representing the folder that contains the files</param>
         /// <param name="batchSize">Number of files to download in each operation</param>
         /// <returns>List of driveitems representing the files in the folder</returns>
-        public async Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, int batchSize = 100)
+        public async Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, DateTimeOffset? lastDate = null, int batchSize = 100)
         {
             if (driveItem == null)
             {
@@ -936,18 +936,21 @@ namespace Coginov.GraphApi.Library.Services
                 return null;
             }
 
+            lastDate ??= DateTime.MinValue;
+
             try
             {
                 var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children.GetAsync((requestConfiguration) =>
                 {
                     requestConfiguration.QueryParameters.Top = batchSize;
+                    requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
 
                 var driveItemList = new List<DriveItem>();
                 var pageIterator = PageIterator<DriveItem, DriveItemCollectionResponse>.CreatePageIterator(graphServiceClient, driveItemResult, (item) => 
                 { 
-                    if (item.Folder == null)
+                    if (item.Folder == null && item.LastModifiedDateTime > lastDate)
                         driveItemList.Add(item);
                     return true; 
                 });
