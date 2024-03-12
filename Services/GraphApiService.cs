@@ -51,6 +51,7 @@ namespace Coginov.GraphApi.Library.Services
         private MsalCacheHelper msalCacheHelper;
         private IPublicClientApplication pca;
         private IConfidentialClientApplication cca;
+        private InteractiveBrowserCredential ibc;
 
         // SharePointOnline
         private string siteUrl;
@@ -164,6 +165,54 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
+        public async Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes)
+        {
+            try
+            {
+                var options = new ClientSecretCredentialOptions
+                {
+                    AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+                };
+
+                // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
+                var clientSecretCredential = new ClientSecretCredential(tenantId, clientId, clientSecret, options);
+                var authResult = await clientSecretCredential.GetTokenAsync(new TokenRequestContext(scopes));
+
+                return authResult.Token;
+            }
+            catch(Exception ex)
+            {
+                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes)
+        {
+            try
+            {
+                // https://learn.microsoft.com/dotnet/api/azure.identity.interactivebrowsercredential
+                var options = new InteractiveBrowserCredentialOptions
+                {
+                    TenantId = tenantId,
+                    ClientId = clientId,
+                    AuthorityHost = new Uri($"https://login.microsoftonline.com/{tenantId}/v2.0"),
+                    RedirectUri = new Uri("http://localhost")
+                };
+
+                ibc ??= new InteractiveBrowserCredential(options);
+
+                var context = new TokenRequestContext(scopes);
+                var authResult = await ibc.GetTokenAsync(context);
+
+                return authResult.Token;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}");
+                return null;
+            }
+        }
 
         public async Task<string> GetUserId(string user)
         {
@@ -520,7 +569,7 @@ namespace Coginov.GraphApi.Library.Services
                     if (document == null || document.File == null)
                         return null;
 
-                    var drive = drivesConnectionInfo.First(x => x.Id == driveId);
+                    var drive = await GetSharePointDriveConnectionInfo(driveId);
                     var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
 
                     string path = Path.Combine(downloadLocation, drive.Root, drive.Name, documentPath, document.Name);
@@ -801,6 +850,193 @@ namespace Coginov.GraphApi.Library.Services
             catch (ODataError ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Search folders and document sets in a Sahrepoint Document libray that match a specific criteria.
+        /// </summary>
+        /// <param name="siteUrl">Url of the Sharepoint site. e.g: https://coginovportal.sharepoint.com/sites/Dev-JC</param>
+        /// <param name="docLibrary">Display name of the document library. e.g: "Documenst Test"</param>
+        /// <param name="searchField">Field to search for a specific value. Optional if searchFilter is specified</param>
+        /// <param name="searchValue">Value to match in the specified field. Optional if searchFilter is specified</param>
+        /// <param name="searchFilter">Optional search condition. Superseeds searchField/searchValue combination </param>
+        /// <returns>List of field values for found folders</returns>
+        public async Task<List<ListItem>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null, int top = 200)
+        {
+            if (string.IsNullOrWhiteSpace(searchFilter))
+            {
+                if (string.IsNullOrWhiteSpace(searchField) || string.IsNullOrWhiteSpace(searchValue))
+                {
+                    logger.LogError(Resource.InvalidSearchParameters);
+                    return null;
+                }
+            }
+
+            try
+            {
+                var siteId = await GetSiteId(siteUrl);
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    return null;
+                }
+
+                searchFilter ??= $"fields/{searchField} eq '{searchValue}'";
+
+                var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
+                    requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and ({searchFilter})";
+                    requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
+                    requestConfiguration.QueryParameters.Top = top;
+                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                });
+
+                folders.Value.ForEach(x =>
+                {
+                    x.Fields.AdditionalData["DriveId"] = x.GetDriveId();
+                    x.Fields.AdditionalData["DriveItemId"] = x.GetDriveItemId();
+                    x.Fields.AdditionalData["CreatedByName"] = x.GetCreatedByName();
+                    x.Fields.AdditionalData["CreatedByEmail"] = x.GetCreatedByEmail();
+                    x.Fields.AdditionalData["ModifiedByName"] = x.GetModifiedByName();
+                    x.Fields.AdditionalData["ModifiedByEmail"] = x.GetModifiedByEmail();
+                });
+
+                return folders.Value;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Update one or more columns in a list of documents with new values
+        /// </summary>
+        /// <param name="items">List of items to be updated</param>
+        /// <param name="columnKeyValues">Dictionary containing list of columns and values to be updated</param>
+        /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
+        public async Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<ListItem> items, Dictionary<string, object> columnKeyValues)
+        {
+            if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
+            {
+                logger.LogError(Resource.InvalidUpdateParameters);
+                return null;
+            }
+
+            try
+            {
+                var result = new Dictionary<ListItem, string>();
+                var columnKeys = columnKeyValues.Keys;
+
+                foreach (var item in items)
+                {
+                    var requestBody = new FieldValueSet
+                    {
+                        AdditionalData = columnKeyValues
+                    };
+
+                    try
+                    {
+                        var listItemResult = await graphServiceClient.Sites[siteId].Lists[item.SharepointIds.ListId].Items[item.SharepointIds.ListItemId].Fields.PatchAsync(requestBody);
+                        result.Add(item, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Add(item, ex.Message);
+                    }
+                }
+
+                return result;
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Update one or more columns in a list of documents with new values
+        /// </summary>
+        /// <param name="items">List of items to be updated</param>
+        /// <param name="columnKeyValues">Dictionary containing list of columns and values to be updated</param>
+        /// <returns>A dictionary containing a folder as the key and an optional update error message as the value</returns>
+        public async Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<DriveItemInfo> items, Dictionary<string, object> columnKeyValues)
+        {
+            if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
+            {
+                logger.LogError(Resource.ErrorUpdatingSharepointItems);
+                return null;
+            }
+
+            try
+            {
+                var listItems = new List<ListItem>();
+
+                foreach (var item in items)
+                {
+                    var listItemResult = await graphServiceClient.Drives[item.DriveId].Items[item.DriveItemId].ListItem.GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
+                        requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
+                        requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                    });
+
+                    listItems.Add(listItemResult);
+                }
+
+                return await UpdateSharePointOnlineItemFieldValue(listItems, columnKeyValues);
+            }
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get the list of files in a folder. Will return all files, retrieves items on batches of 'batchSize'
+        /// </summary>
+        /// <param name="driveItem">Object representing the folder that contains the files</param>
+        /// <param name="batchSize">Number of files to download in each operation</param>
+        /// <returns>List of driveitems representing the files in the folder</returns>
+        public async Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, DateTimeOffset? lastDate = null, int batchSize = 100)
+        {
+            if (driveItem == null)
+            {
+                logger.LogError("Invalid driveItem info");
+                return null;
+            }
+
+            lastDate ??= DateTime.MinValue;
+
+            try
+            {
+                var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Top = batchSize;
+                    requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
+                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                });
+
+                var driveItemList = new List<DriveItem>();
+                var pageIterator = PageIterator<DriveItem, DriveItemCollectionResponse>.CreatePageIterator(graphServiceClient, driveItemResult, (item) => 
+                { 
+                    if (item.Folder == null && item.LastModifiedDateTime > lastDate)
+                        driveItemList.Add(item);
+                    return true; 
+                });
+
+                await pageIterator.IterateAsync();
+                
+                return driveItemList;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
                 return null;
             }
         }
@@ -1422,6 +1658,31 @@ namespace Coginov.GraphApi.Library.Services
                 //Invalid token format
                 return null;
             }
+        }
+
+        private async Task<DriveConnectionInfo> GetSharePointDriveConnectionInfo(string driveId)
+        {
+            var driveInfo = drivesConnectionInfo?.FirstOrDefault(x => x.Id == driveId);
+            if (driveInfo != null)
+                return driveInfo;
+
+            var drive = await graphServiceClient.Drives[driveId].GetAsync();
+            
+            driveInfo = new DriveConnectionInfo
+            {
+                Id = drive.Id,
+                Root = siteUrl.GetFolderNameFromSpoUrl(),
+                Path = drive.WebUrl,
+                Name = drive.Name,
+                DownloadCompleted = false
+            };
+
+            if (drivesConnectionInfo == null)
+                drivesConnectionInfo = new List<DriveConnectionInfo>();
+
+            drivesConnectionInfo.Add(driveInfo);
+
+            return driveInfo;
         }
 
         #endregion
