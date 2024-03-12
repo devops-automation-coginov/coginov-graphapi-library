@@ -32,5 +32,11 @@ namespace Coginov.GraphApi.Library.Services
         Task<bool> DeleteDocumentByPath(string driveId, string documentPath);
         Task<bool> MoveDocument(string driveId, string documentId, string destFolderId = null, string destFolder = null, string docNewName = null);
         Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false, bool excludeSystemDocLibs = false);
+        Task<List<ListItem>> SearchSharepointOnlineFolders(string siteUrl, string docLibrary, string searchField = null, string searchValue = null, string searchFilter = null, int top = 200);
+        Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<ListItem> items, Dictionary<string, object> columnKeyValues);
+        Task<Dictionary<ListItem, string>> UpdateSharePointOnlineItemFieldValue(List<DriveItemInfo> items, Dictionary<string, object> columnKeyValues);
+        Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, DateTimeOffset? lastDate = null, int batchSize = 100);
+        Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes);
+        Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes);
     }
 }
