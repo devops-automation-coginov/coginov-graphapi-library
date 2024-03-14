@@ -80,13 +80,13 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries)
+        public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
             this.siteUrl = siteUrl; 
             this.docLibraries = docLibraries;
 
-            if (!await IsInitialized())
+            if (!await IsInitialized(forceInit))
                 return false;
 
             try
@@ -107,12 +107,12 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount)
+        public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
             this.oneDriveUserAccount = userAccount;
 
-            if (!await IsInitialized())
+            if (!await IsInitialized(forceInit))
                 return false;
 
             try
@@ -133,12 +133,12 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams)
+        public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
             this.teams = teams;
 
-            if (!await IsInitialized())
+            if (!await IsInitialized(forceInit))
                 return false;
 
             try
@@ -155,10 +155,10 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig)
+        public async Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false)
         {
             authConfig = authenticationConfig;
-            if (!await IsInitialized())
+            if (!await IsInitialized(forceInit))
                 return false;
 
             connectionType = DriveConnectionType.ExchangeConnection;
@@ -1515,9 +1515,9 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        private async Task<bool> IsInitialized()
+        private async Task<bool> IsInitialized(bool forceInit = false)
         {
-            if (graphServiceClient != null)
+            if (!forceInit && graphServiceClient != null)
                 // TODO: Check if graphServiceClient is still connected
                 // Even when we could already have an instance of the client the connection may had been lost
                 return true;
