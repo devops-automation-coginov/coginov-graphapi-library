@@ -8,10 +8,10 @@ namespace Coginov.GraphApi.Library.Services
 {
     public interface IGraphApiService
     {
-        Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries);
-        Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount);
-        Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, params string[]? teams);
-        Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig);
+        Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false);
+        Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount, bool forceInit = false);
+        Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams, bool forceInit = false);
+        Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false);
         Task<List<DriveConnectionInfo>> GetSharePointOnlineDrives();
         Task<List<DriveConnectionInfo>> GetOneDriveDrives();
         Task<List<DriveConnectionInfo>> GetMsTeamDrives();
