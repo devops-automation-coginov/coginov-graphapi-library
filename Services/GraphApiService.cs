@@ -80,6 +80,12 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        public async Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true)
+        {
+            this.authConfig = authenticationConfig;
+            return await IsInitialized(forceInit);
+        }
+
         public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
@@ -1160,6 +1166,30 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<List<MailFolder>> GetEmailFolders(string userAccount)
         {
+            try
+            {
+                var folderResult = await graphServiceClient.Users[userAccount].MailFolders.GetAsync(requestConfiguration =>
+                {
+                    requestConfiguration.QueryParameters.Select = new string[] { "id", "displayName", "totalItemCount" };
+                });
+
+                var folderList = new List<MailFolder>();
+                var pageIterator = PageIterator<MailFolder, MailFolderCollectionResponse>.CreatePageIterator(graphServiceClient, folderResult, (item) =>
+                {
+                    folderList.Add(item);
+                    return true;
+                });
+
+                await pageIterator.IterateAsync();
+
+                return folderList;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
+                return null;
+            }
+
             var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
 
             while (retryCount-- > 0)

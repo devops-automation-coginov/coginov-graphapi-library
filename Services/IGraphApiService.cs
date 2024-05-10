@@ -8,6 +8,7 @@ namespace Coginov.GraphApi.Library.Services
 {
     public interface IGraphApiService
     {
+        Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true);
         Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false);
         Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount, bool forceInit = false);
         Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams, bool forceInit = false);
@@ -25,6 +26,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<List<MailFolder>> GetEmailFolders(string userAccount);
         Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount);
         Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder);
+        Task<bool> RemoveEmail(string userAccount, string emailId);
         Task<bool> SendEmail(string fromAccount, string toAccounts, string subject, string body, List<Attachment> attachments = null);
         Task<int?> GetInboxMessageCount(string userAccount);
         Task<bool> UploadDocumentToDrive(string driveId, string filePath, string fileName = null, string folderPath = "", string onConflict = "replace");
