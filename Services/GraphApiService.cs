@@ -80,6 +80,12 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        public async Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true)
+        {
+            this.authConfig = authenticationConfig;
+            return await IsInitialized(forceInit);
+        }
+
         public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
@@ -1160,27 +1166,29 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<List<MailFolder>> GetEmailFolders(string userAccount)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            try
             {
-                try
+                var folderResult = await graphServiceClient.Users[userAccount].MailFolders.GetAsync(requestConfiguration =>
                 {
-                    var foldersResult =  await graphServiceClient.Users[userAccount].MailFolders.GetAsync(requestConfiguration =>
-                                                    {
-                                                        requestConfiguration.QueryParameters.Select = new string[] { "id", "displayName", "totalItemCount" };
-                                                    });
-                    return foldersResult.Value.ToList();
-                }
-                catch (ODataError ex)
+                    requestConfiguration.QueryParameters.Select = new string[] { "id", "displayName", "totalItemCount" };
+                });
+
+                var folderList = new List<MailFolder>();
+                var pageIterator = PageIterator<MailFolder, MailFolderCollectionResponse>.CreatePageIterator(graphServiceClient, folderResult, (item) =>
                 {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                    folderList.Add(item);
+                    return true;
+                });
+
+                await pageIterator.IterateAsync();
+
+                return folderList;
             }
-            return null;
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
+                return null;
+            }
         }
 
         public async Task<MailFolder> GetEmailFolderById(string userAccount, string folderId)
@@ -1381,9 +1389,17 @@ namespace Coginov.GraphApi.Library.Services
                         if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
                             continue;
 
-                        var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
-                        var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
-                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
+                        try
+                        {
+                            var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                            var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
+                            siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
+                        }
+                        catch(Exception ex)
+                        {
+                            logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {item.Key.Name}. {ex.Message}. {ex.InnerException?.Message}");
+                            continue;
+                        }
                     }
 
                     batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
