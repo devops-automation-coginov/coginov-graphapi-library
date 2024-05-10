@@ -1189,28 +1189,6 @@ namespace Coginov.GraphApi.Library.Services
                 logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
                 return null;
             }
-
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
-            {
-                try
-                {
-                    var foldersResult =  await graphServiceClient.Users[userAccount].MailFolders.GetAsync(requestConfiguration =>
-                                                    {
-                                                        requestConfiguration.QueryParameters.Select = new string[] { "id", "displayName", "totalItemCount" };
-                                                    });
-                    return foldersResult.Value.ToList();
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
-            }
-            return null;
         }
 
         public async Task<MailFolder> GetEmailFolderById(string userAccount, string folderId)
