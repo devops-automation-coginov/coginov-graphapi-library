@@ -1389,9 +1389,17 @@ namespace Coginov.GraphApi.Library.Services
                         if (siteDocsDictionary.ContainsKey(item.Key.WebUrl))
                             continue;
 
-                        var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
-                        var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
-                        siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
+                        try
+                        {
+                            var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
+                            var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
+                            siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
+                        }
+                        catch(Exception ex)
+                        {
+                            logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {item.Key.Name}. {ex.Message}. {ex.InnerException?.Message}");
+                            continue;
+                        }
                     }
 
                     batch = sites.Skip(++index * batchSize).Take(batchSize).ToList();
