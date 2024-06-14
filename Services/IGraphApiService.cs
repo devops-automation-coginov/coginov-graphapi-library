@@ -16,7 +16,6 @@ namespace Coginov.GraphApi.Library.Services
         Task<List<DriveConnectionInfo>> GetSharePointOnlineDrives();
         Task<List<DriveConnectionInfo>> GetOneDriveDrives();
         Task<List<DriveConnectionInfo>> GetMsTeamDrives();
-        Task<List<string>> GetDocumentIds(string driveId, DateTime lastDate, int skip, int top);
         Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken);
         Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation);
         Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false);

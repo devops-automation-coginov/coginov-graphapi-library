@@ -100,3 +100,18 @@ For open source projects, say how it is licensed.
 
 ## Project status
 If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+
+## Support for Siemens Logistik
+A new authentication method has been added to support the requirements of Siemens Logistik.
+This is implemented in the InitializeUsingAccessToken method.
+Access and Refresh tokens are provided by Siemens in a text file that is copied into the local file system.
+Every time this token is refreshed it is saved to the same location.
+The logic for token acquisition/refresh is implemented in the [TokenProvider class](../Helpers/TokenProvider.cs).
+This class implements the OAuth2 [Authorization Code Flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) 
+
+## Retry/Error Handler
+Beginning with Microsoft SDK v5 the RetryHandler is designed to retry requests that fail due to transient errors, including 429 errors (rate limiting) and network errors. 
+By default, it will retry the request up to a maximum of 10 times with an exponential backoff delay between retries, where the maximum delay is 60 seconds. 
+The delay between retries increases with each retry attempt.
+https://github.com/microsoft/kiota-http-dotnet/blob/main/src/Middleware/RetryHandler.cs
+https://camerondwyer.com/2021/09/23/how-to-use-the-microsoft-graph-sdk-chaos-handler-to-simulate-graph-api-errors/
