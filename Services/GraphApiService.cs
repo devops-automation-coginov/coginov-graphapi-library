@@ -24,6 +24,7 @@ using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 using Microsoft.Kiota.Abstractions;
+using Microsoft.Kiota.Authentication.Azure;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -205,10 +206,6 @@ namespace Coginov.GraphApi.Library.Services
                 var userObject = await graphServiceClient.Users[user].GetAsync();
                 return userObject?.Id;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingUserId}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingUserId}: {ex.Message}. {ex.InnerException?.Message}");
@@ -280,10 +277,6 @@ namespace Coginov.GraphApi.Library.Services
                     drivesConnectionInfo.Add(driveInfo);
                 }
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message}");
@@ -312,10 +305,6 @@ namespace Coginov.GraphApi.Library.Services
 
                     drivesConnectionInfo.Add(driveInfo);
                 }
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingDrives}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -389,10 +378,6 @@ namespace Coginov.GraphApi.Library.Services
 
                     drivesConnectionInfo.Add(driveInfo);
                 }
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingTeams}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -468,10 +453,6 @@ namespace Coginov.GraphApi.Library.Services
 
                 return driveItemResult;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
@@ -489,10 +470,6 @@ namespace Coginov.GraphApi.Library.Services
                 return await graphServiceClient.Drives[driveRoot.Id]
                     .Items[documentId]
                     .GetAsync();
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -534,10 +511,6 @@ namespace Coginov.GraphApi.Library.Services
                     // We got an error while saving document content. Let's try in chuncks in case it is too big
                     return await SaveDriveItemToFileSystem(document, filePath);
                 }
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -586,10 +559,6 @@ namespace Coginov.GraphApi.Library.Services
                 }
 
                 return document;
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -664,10 +633,6 @@ namespace Coginov.GraphApi.Library.Services
 
                 return true;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.DriveItemUploadFailed}: {ex.Error?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.DriveItemUploadFailed}: {ex.Message}. {ex.InnerException?.Message}");
@@ -690,10 +655,6 @@ namespace Coginov.GraphApi.Library.Services
             {
                 await graphServiceClient.Drives[driveId].Items[documentId].DeleteAsync();
                 return true;
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -720,10 +681,6 @@ namespace Coginov.GraphApi.Library.Services
                                                         .GetAsync();
 
                 return await DeleteDocumentById(driveId, driveItem.Id);
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -774,10 +731,6 @@ namespace Coginov.GraphApi.Library.Services
                 var result = await graphServiceClient.Drives[driveId].Items[documentId].PatchAsync(requestBody);
                 return true;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
@@ -800,8 +753,9 @@ namespace Coginov.GraphApi.Library.Services
                     requestConfiguration.QueryParameters.Select = new[] { "Id", "WebUrl", "Name", "DisplayName" };
                     requestConfiguration.QueryParameters.Top = 200;
                 });
+
                 // There is a known bug in Graph API SDK when searching sites with * character: https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/1884
-                // This is a workaround to overcome this. 
+                // This is a workaround to overcome this: https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/1826#issuecomment-1531405983
                 requestInformation.UrlTemplate = requestInformation.UrlTemplate.Replace("%24search", "search");
                 requestInformation.QueryParameters.Add("search", "*");
 
@@ -851,10 +805,6 @@ namespace Coginov.GraphApi.Library.Services
                 return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
 
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message}");
@@ -900,6 +850,7 @@ namespace Coginov.GraphApi.Library.Services
                     requestConfiguration.QueryParameters.Top = top;
                     //The search for keywords is always done with a set http header "prefer" with the value "HonorNonIndexedQueriesWarningMayFailRandomly" 
                     //This way we are able to search over index terms that are not mapped in an index. The other option is to add an index to the filed to be filtered
+                    //https://learn.microsoft.com/en-us/answers/questions/1255945/use-graph-api-get-items-on-a-sharepoint-list-with
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
 
@@ -916,10 +867,6 @@ namespace Coginov.GraphApi.Library.Services
                 });
 
                 return folders.Value;
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -968,10 +915,6 @@ namespace Coginov.GraphApi.Library.Services
 
                 return result;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
@@ -1010,10 +953,6 @@ namespace Coginov.GraphApi.Library.Services
                 }
 
                 return await UpdateSharePointOnlineItemFieldValue(listItems, columnKeyValues);
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -1059,13 +998,9 @@ namespace Coginov.GraphApi.Library.Services
                 
                 return driveItemList;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
-            }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return null;
@@ -1093,10 +1028,6 @@ namespace Coginov.GraphApi.Library.Services
                 // We got a timeout, ignore for now
                 logger.LogInformation($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next");
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message}");
@@ -1111,10 +1042,6 @@ namespace Coginov.GraphApi.Library.Services
             {
                 return await graphServiceClient.Users[userAccount].Messages.Count.GetAsync();
 
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessagesCount}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -1139,10 +1066,6 @@ namespace Coginov.GraphApi.Library.Services
                                                 requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
                                                 requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
                                             });
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -1172,10 +1095,6 @@ namespace Coginov.GraphApi.Library.Services
                                         requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
                                     });
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
@@ -1204,10 +1123,6 @@ namespace Coginov.GraphApi.Library.Services
 
                 return folderList;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
@@ -1221,10 +1136,6 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 return await graphServiceClient.Users[userAccount].MailFolders[folderId].GetAsync();
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -1257,10 +1168,6 @@ namespace Coginov.GraphApi.Library.Services
                         .PostAsync(requestBody);
 
                 return true;
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -1298,10 +1205,6 @@ namespace Coginov.GraphApi.Library.Services
 
                 return true;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message}");
@@ -1327,10 +1230,6 @@ namespace Coginov.GraphApi.Library.Services
 
                 return true;
             }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
-            }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
@@ -1352,10 +1251,6 @@ namespace Coginov.GraphApi.Library.Services
             {
                 await graphServiceClient.Users[userAccount].Messages[emailId].DeleteAsync();
                 return true;
-            }
-            catch (ODataError ex)
-            {
-                logger.LogError($"{Resource.ErrorRemovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
             }
             catch (Exception ex)
             {
@@ -1382,8 +1277,9 @@ namespace Coginov.GraphApi.Library.Services
                 var batch = sites.Skip(index * batchSize).Take(batchSize).ToList();
                 while (batch.Any())
                 {
-                    // Using GaphAPI batch calls to retrieve document libraries for each of the sites:
+                    // Using GraphAPI batch calls to retrieve document libraries for each of the sites:
                     // https://learn.microsoft.com/en-us/graph/sdks/batch-requests
+                    // https://learn.microsoft.com/en-us/graph/json-batching
                     var batchRequestContent = new BatchRequestContentCollection(graphServiceClient);
                     var requestList = new List<RequestInformation>();
                     var requestIdDictionary = new Dictionary<Site, string>();
@@ -1464,7 +1360,15 @@ namespace Coginov.GraphApi.Library.Services
                     var clientSecretCredential = new ClientSecretCredential(authConfig.Tenant, authConfig.ClientId, authConfig.ClientSecret, options);
                     // Try to get a token to make sure the credentials provided work
                     await clientSecretCredential.GetTokenAsync(new TokenRequestContext(scopes));
-                    graphServiceClient = new GraphServiceClient(clientSecretCredential, scopes);
+
+                    if (authConfig.UseChaosHander)
+                    {
+                        return InitializeWithChaosHandler(clientSecretCredential, scopes);
+                    }
+                    else
+                    {
+                        graphServiceClient = new GraphServiceClient(clientSecretCredential, scopes);
+                    }
                 }
                 else
                 {
@@ -1521,7 +1425,14 @@ namespace Coginov.GraphApi.Library.Services
                 var context = new TokenRequestContext(graphScopes);
                 await interactiveCredential.GetTokenAsync(context);
 
-                graphServiceClient = new GraphServiceClient(interactiveCredential, graphScopes);
+                if (authConfig.UseChaosHander)
+                {
+                    return InitializeWithChaosHandler(interactiveCredential, graphScopes);
+                }
+                else
+                {
+                    graphServiceClient = new GraphServiceClient(interactiveCredential, graphScopes);
+                }
             }
             catch(Exception ex)
             {
@@ -1530,6 +1441,40 @@ namespace Coginov.GraphApi.Library.Services
             }
 
             return true;
+        }
+
+        // We can use ChaosHandler to simulate server failures
+        // https://learn.microsoft.com/en-us/graph/sdks/customize-client?tabs=csharp
+        // https://camerondwyer.com/2021/09/23/how-to-use-the-microsoft-graph-sdk-chaos-handler-to-simulate-graph-api-errors/
+        private bool InitializeWithChaosHandler(TokenCredential credential, string[] scopes)
+        {
+            try
+            {
+                // tokenCredential is one of the credential classes from Azure.Identity
+                // scopes is an array of permission scope strings
+                var authProvider = new AzureIdentityAuthenticationProvider(credential, scopes: scopes);
+
+                var handlers = GraphClientFactory.CreateDefaultHandlers();
+
+                // Remove the default Retry Handler
+                var retryHandler = handlers.Where(h => h is RetryHandler).FirstOrDefault();
+                handlers.Remove(retryHandler);
+
+                // Add a new one ChaosHandler simulates random server failures
+                // Microsoft.Kiota.Http.HttpClientLibrary.Middleware.ChaosHandler
+                handlers.Add(new ChaosHandler(new ChaosHandlerOption()
+                {
+                    ChaosPercentLevel = authConfig.ChaosHandlerPercent
+                }));
+
+                var httpClient = GraphClientFactory.Create(handlers);
+                graphServiceClient = new GraphServiceClient(httpClient, authProvider);
+                return true;
+            }
+            catch(Exception)
+            {
+                return false;
+            }
         }
 
         private async Task<bool> InitializeUsingAccessToken()
