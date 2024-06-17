@@ -4,23 +4,17 @@ using Coginov.GraphApi.Library.Helpers;
 using Coginov.GraphApi.Library.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
-using Microsoft.Identity.Client;
-using Microsoft.Identity.Client.Extensions.Msal;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
 using SystemFile = System.IO.File;
-using System.Web;
 using Microsoft.Graph.Models;
-using Microsoft.Graph.Search.Query;
 using Microsoft.Graph.Users.Item.SendMail;
 using Microsoft.Kiota.Abstractions.Authentication;
 using Azure.Core;
@@ -29,13 +23,12 @@ using System.Text.RegularExpressions;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
-using System.Reflection.Metadata;
-using Microsoft.Graph.Models.Security;
 using Microsoft.Kiota.Abstractions;
+using Microsoft.Kiota.Authentication.Azure;
 
 namespace Coginov.GraphApi.Library.Services
 {
-    public class GraphApiService : IGraphApiService, IDisposable
+    public class GraphApiService : IGraphApiService
     {
         private readonly ILogger logger;
         private AuthenticationConfig authConfig;
@@ -46,11 +39,6 @@ namespace Coginov.GraphApi.Library.Services
         private string userId;
         private string siteId;
         private AuthenticationToken authenticationToken;
-        private string msalCachePath;
-        private string msalCacheFileName;
-        private MsalCacheHelper msalCacheHelper;
-        private IPublicClientApplication pca;
-        private IConfidentialClientApplication cca;
         private InteractiveBrowserCredential ibc;
 
         // SharePointOnline
@@ -69,15 +57,6 @@ namespace Coginov.GraphApi.Library.Services
         public GraphApiService(ILogger logger)
         {
             this.logger = logger;
-        }
-
-        public void Dispose()
-        {
-            if (msalCacheHelper != null)
-            {
-                msalCacheHelper.UnregisterCache(pca.UserTokenCache);
-                SystemFile.Delete(Path.Combine(msalCachePath, msalCacheFileName));
-            }
         }
 
         public async Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true)
@@ -229,9 +208,10 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingUserId}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return null;
+                logger.LogError($"{Resource.ErrorRetrievingUserId}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return null;
         }
 
         public async Task<string> GetSiteId(string siteUrl)
@@ -299,7 +279,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return drivesConnectionInfo;
@@ -328,7 +308,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDrives}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorRetrievingDrives}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return drivesConnectionInfo;
@@ -401,138 +381,81 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingTeams}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorRetrievingTeams}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return drivesConnectionInfo;
         }
 
-        public async Task<List<string>> GetDocumentIds(string driveId, DateTime lastDate, int skip, int top)
+        public async Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken)
         {
-            var documentIds = new List<string>();
-
             try
             {
-                var path = drivesConnectionInfo.FirstOrDefault(x => x.Id == driveId)?.Path;
+                var drive = await GetDriveRoot(driveId);
 
-                var requestBody = new QueryPostRequestBody
+                var rootDriveItem = await graphServiceClient.Drives[drive.Id].Root.GetAsync();
+
+                BaseDeltaFunctionResponse deltaResponse;
+
+                if (string.IsNullOrWhiteSpace(skipToken))
                 {
-                    Requests = new List<SearchRequest>
-                    {
-                        new SearchRequest
-                        {
-                            EntityTypes = new List<EntityType?> { EntityType.DriveItem },
-                            Query = new SearchQuery { QueryString = $"LastModifiedtime>{lastDate} AND Path:{path} AND IsDocument:Yes" },
-                            From = skip,
-                            Size = top,
-                            SortProperties = new List<SortProperty>()
+                    deltaResponse = await graphServiceClient.Drives[drive.Id]
+                            .Items[rootDriveItem.Id]
+                            .Delta
+                            .GetAsDeltaGetResponseAsync(requestConfiguration =>
                             {
-                                new SortProperty
-                                {
-                                    Name = "LastModifiedDateTime",
-                                    IsDescending = false
-                                }
-                            }
-                        }
-                    }
+                                requestConfiguration.QueryParameters.Top = top;
+                                requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
+                            });
+
+                }
+                else
+                {
+                    deltaResponse = await graphServiceClient.Drives[drive.Id]
+                            .Items[rootDriveItem.Id]
+                            .DeltaWithToken(skipToken)
+                            .GetAsDeltaWithTokenGetResponseAsync(requestConfiguration =>
+                            {
+                                requestConfiguration.QueryParameters.Top = top;
+                                requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
+                            });
+                }
+
+                var deltaLink = deltaResponse?.OdataNextLink ?? deltaResponse?.OdataDeltaLink;
+
+                if (deltaLink != null)
+                {
+                    var tokenString = Regex.Match(deltaLink, @"token='?[a-zA-Z0-9_.-]*'?");
+                    var newToken = tokenString.Value.Replace("token=", "").Replace("'", "");
+                    skipToken = newToken ?? skipToken;
+                }
+
+                var deltaResults = deltaResponse.BackingStore?.Get<List<Microsoft.Graph.Models.DriveItem>?>("value");
+
+                var driveItemResult = new DriveItemSearchResult
+                {
+                    DocumentIds = new List<DriveItem>(),
+                    HasMoreResults = deltaResponse?.OdataNextLink != null,
+                    SkipToken = skipToken,
+                    LastDate = deltaResults?.LastOrDefault()?.LastModifiedDateTime?.DateTime ?? lastDate
                 };
 
+                if (deltaResponse == null)
+                    return driveItemResult;
 
-                QueryResponse searchResults = await graphServiceClient.Search.Query.PostAsync(requestBody);
-                foreach (var searchResult in searchResults.Value.First().HitsContainers)
+                foreach (var searchResult in deltaResults)
                 {
-                    if (searchResult.Total == 0)
-                        break;
+                    if (searchResult.Folder != null || searchResult.Deleted != null || searchResult.File == null)
+                        continue;
 
-                    foreach (var hit in searchResult.Hits)
-                        documentIds.Add(hit.HitId);
+                    driveItemResult.DocumentIds.Add(searchResult);
                 }
+
+                return driveItemResult;
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-            }
-
-            return documentIds;
-        }
-
-        public async Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken)
-        {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
-            {
-                try
-                {
-                    var drive = await GetDriveRoot(driveId);
-
-                    var rootDriveItem = await graphServiceClient.Drives[drive.Id].Root.GetAsync();
-
-                    BaseDeltaFunctionResponse deltaResponse;
-
-                    if (string.IsNullOrWhiteSpace(skipToken))
-                    {
-                        deltaResponse = await graphServiceClient.Drives[drive.Id]
-                               .Items[rootDriveItem.Id]
-                               .Delta
-                               .GetAsync(requestConfiguration =>
-                               {
-                                   requestConfiguration.QueryParameters.Top = top;
-                                   requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
-                               });
-
-                    }
-                    else
-                    {
-                        deltaResponse = await graphServiceClient.Drives[drive.Id]
-                               .Items[rootDriveItem.Id]
-                               .DeltaWithToken(skipToken)
-                               .GetAsync(requestConfiguration =>
-                               {
-                                   requestConfiguration.QueryParameters.Top = top;
-                                   requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
-                               });
-                    }
-
-                    var deltaLink = deltaResponse.OdataNextLink ?? deltaResponse.OdataDeltaLink;
-
-                    if (deltaLink != null)
-                    {
-                        var tokenString = Regex.Match(deltaLink, @"token='?[a-zA-Z0-9_.-]*'?");
-                        var newToken = tokenString.Value.Replace("token=", "").Replace("'", "");
-                        skipToken = newToken ?? skipToken;
-                    }
-
-                    var deltaResults = deltaResponse.BackingStore?.Get<List<Microsoft.Graph.Models.DriveItem>?>("value");
-
-                    var driveItemResult = new DriveItemSearchResult
-                    {
-                        DocumentIds = new List<DriveItem>(),
-                        HasMoreResults = deltaResponse.OdataNextLink != null,
-                        SkipToken = skipToken,
-                        LastDate = deltaResults.LastOrDefault()?.LastModifiedDateTime?.DateTime ?? lastDate
-                    };
-
-                    if (deltaResponse == null)
-                        return driveItemResult;
-
-                    foreach (var searchResult in deltaResults)
-                    {
-                        if (searchResult.Folder != null || searchResult.Deleted != null || searchResult.File == null)
-                            continue;
-
-                        driveItemResult.DocumentIds.Add(searchResult);
-                    }
-
-                    return driveItemResult;
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return null;
@@ -540,91 +463,106 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<DriveItem> GetDriveItem(string driveId, string documentId)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    var driveRoot = await GetDriveRoot(driveId);
+                var driveRoot = await GetDriveRoot(driveId);
 
-                    return await graphServiceClient.Drives[driveRoot.Id]
-                        .Items[documentId]
-                        .GetAsync();
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return await graphServiceClient.Drives[driveRoot.Id]
+                    .Items[documentId]
+                    .GetAsync();
             }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
             return null;
         }
 
         public async Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            try
             {
+                var document = await GetDriveItem(driveId, documentId);
+                if (document == null || document.File == null)
+                    return null;
+
+                var drive = await GetSharePointDriveConnectionInfo(driveId);
+                var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
+
+                string filePath = Path.Combine(downloadLocation, drive.Root, drive.Name, documentPath, document.Name).GetFilePathWithTimestamp();
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                document.AdditionalData.Add("FilePath", filePath);
+
                 try
                 {
-                    var document = await GetDriveItem(driveId, documentId);
-                    if (document == null || document.File == null)
-                        return null;
+                    var driveRoot = await GetDriveRoot(driveId);
 
-                    var drive = await GetSharePointDriveConnectionInfo(driveId);
-                    var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
+                    var documentStream = await graphServiceClient.Drives[driveRoot.Id].Items[documentId].Content.GetAsync();
 
-                    string path = Path.Combine(downloadLocation, drive.Root, drive.Name, documentPath, document.Name);
-                    System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path));
-
-                    document.AdditionalData.TryGetValue("@microsoft.graph.downloadUrl", out var downloadUrl);
-                    var documentSize = document.Size;
-                    var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
-
-                    using (FileStream outputFileStream = new FileStream(path.GetFilePathWithTimestamp(), FileMode.Create))
-                    {
-                        long offset = 0;
-                        while (offset < documentSize)
-                        {
-                            var chunkSize = documentSize - offset > readSize ? readSize : documentSize - offset;
-                            var req = new HttpRequestMessage(HttpMethod.Get, downloadUrl.ToString());
-                            req.Headers.Range = new RangeHeaderValue(offset, chunkSize + offset - 1);
-
-                            try
-                            {
-                                var graphClientResponse = await graphHttpClient.SendAsync(req);
-                                if (graphClientResponse.StatusCode != System.Net.HttpStatusCode.OK && graphClientResponse.StatusCode != System.Net.HttpStatusCode.PartialContent)
-                                    throw new TaskCanceledException();
-
-                                using (var rs = await graphClientResponse.Content.ReadAsStreamAsync())
-                                    rs.CopyTo(outputFileStream);
-
-                                offset += readSize;
-                            }
-                            catch (TaskCanceledException)
-                            {
-                                // We got a timeout, try with a smaller chunk size
-                                readSize /= 2;
-                                offset = 0;
-                                outputFileStream.Seek(offset, SeekOrigin.Begin);
-                            }
-                        }
-                        document.AdditionalData.Add("FilePath", outputFileStream.Name);
-                    }
+                    using (FileStream outputFileStream = new FileStream(filePath, FileMode.Create))
+                        documentStream.CopyTo(outputFileStream);
 
                     return document;
                 }
-                catch (ODataError ex)
+                catch (Exception)
                 {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
+                    // We got an error while saving document content. Let's try in chuncks in case it is too big
+                    return await SaveDriveItemToFileSystem(document, filePath);
                 }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
+            return null;
+        }
+
+        private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath)
+        {
+            try
+            {
+                document.AdditionalData.TryGetValue("@microsoft.graph.downloadUrl", out var downloadUrl);
+                var documentSize = document.Size;
+                var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
+
+                using (FileStream outputFileStream = new FileStream(filePath.GetFilePathWithTimestamp(), FileMode.Create))
+                {
+                    long offset = 0;
+                    while (offset < documentSize)
+                    {
+                        var chunkSize = documentSize - offset > readSize ? readSize : documentSize - offset;
+                        var req = new HttpRequestMessage(HttpMethod.Get, downloadUrl.ToString());
+                        req.Headers.Range = new RangeHeaderValue(offset, chunkSize + offset - 1);
+
+                        try
+                        {
+                            var graphClientResponse = await graphHttpClient.SendAsync(req);
+                            if (graphClientResponse.StatusCode != System.Net.HttpStatusCode.OK && graphClientResponse.StatusCode != System.Net.HttpStatusCode.PartialContent)
+                                throw new TaskCanceledException();
+
+                            using (var rs = await graphClientResponse.Content.ReadAsStreamAsync())
+                                rs.CopyTo(outputFileStream);
+
+                            offset += readSize;
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            // We got a timeout, try with a smaller chunk size
+                            readSize /= 2;
+                            offset = 0;
+                            outputFileStream.Seek(offset, SeekOrigin.Begin);
+                        }
+                    }
+                }
+
+                return document;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return null;
@@ -638,9 +576,9 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="filePath">FileName and Path where the document is stored in the local file system. e.g: c:\forlder\file.txt</param>
         /// <param name="fileName">Optional parameter to change the name of the uploaded file</param>
         /// <param name="folderPath">Optional location in the document library where the file will be uploaded. e.g: folder1/folder2</param>
-        /// <param name="onConflict">Optional conflict resolution behaviour. Default: replace</param>
+        /// <param name="onConflict">Optional conflict resolution behaviour. Default: rename</param>
         /// <returns></returns>
-        public async Task<bool> UploadDocumentToDrive(string driveId, string filePath, string fileName = null, string folderPath = "", string onConflict = "replace")
+        public async Task<bool> UploadDocumentToDrive(string driveId, string filePath, string fileName = null, string folderPath = "", string onConflict = "rename")
         {
             if (fileName == null)
             {
@@ -661,7 +599,7 @@ namespace Coginov.GraphApi.Library.Services
 
             try
             {
-                using var fileStream = File.OpenRead(filePath);
+                using var fileStream = System.IO.File.OpenRead(filePath);
 
                 // Create the upload session
                 var myDrive = await graphServiceClient.Drives[driveId].GetAsync();
@@ -695,12 +633,13 @@ namespace Coginov.GraphApi.Library.Services
 
                 return true;
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.DriveItemUploadFailed}: {ex.Error?.Message}");
-                return false;
+                logger.LogError($"{Resource.DriveItemUploadFailed}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
+
+            return false;
         }
 
         /// <summary>
@@ -717,11 +656,12 @@ namespace Coginov.GraphApi.Library.Services
                 await graphServiceClient.Drives[driveId].Items[documentId].DeleteAsync();
                 return true;
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return false;
+                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return false;
         }
 
         /// <summary>
@@ -742,11 +682,12 @@ namespace Coginov.GraphApi.Library.Services
 
                 return await DeleteDocumentById(driveId, driveItem.Id);
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return false;
+                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return false;
         }
 
         /// <summary>
@@ -790,11 +731,12 @@ namespace Coginov.GraphApi.Library.Services
                 var result = await graphServiceClient.Drives[driveId].Items[documentId].PatchAsync(requestBody);
                 return true;
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return false;
+                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return false;
         }
 
         /// <summary>
@@ -811,10 +753,17 @@ namespace Coginov.GraphApi.Library.Services
                     requestConfiguration.QueryParameters.Select = new[] { "Id", "WebUrl", "Name", "DisplayName" };
                     requestConfiguration.QueryParameters.Top = 200;
                 });
+
+                // There is a known bug in Graph API SDK when searching sites with * character: https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/1884
+                // This is a workaround to overcome this: https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/1826#issuecomment-1531405983
                 requestInformation.UrlTemplate = requestInformation.UrlTemplate.Replace("%24search", "search");
                 requestInformation.QueryParameters.Add("search", "*");
-                var sitesReponse = await graphServiceClient.RequestAdapter.SendAsync<SiteCollectionResponse>(requestInformation, SiteCollectionResponse.CreateFromDiscriminatorValue);
+
                 var sites = new List<Site>();
+
+                // This is one of the ways to retrieve paged results from GraphAPI SDK. Using PageIterator
+                // https://learn.microsoft.com/en-us/graph/sdks/paging
+                var sitesReponse = await graphServiceClient.RequestAdapter.SendAsync(requestInformation, SiteCollectionResponse.CreateFromDiscriminatorValue);
                 var sitesIterator = PageIterator<Site, SiteCollectionResponse>.CreatePageIterator(graphServiceClient, sitesReponse, (site) => { sites.Add(site); return true; });
                 await sitesIterator.IterateAsync();
 
@@ -824,18 +773,20 @@ namespace Coginov.GraphApi.Library.Services
 
                 if (!excludePersonalSites)
                 {
-                    var sitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsync((requestConfiguration) =>
+                    var personalSitesResponse = await graphServiceClient.Sites.GetAllSites.GetAsGetAllSitesGetResponseAsync((requestConfiguration) =>
                     {
                         requestConfiguration.QueryParameters.Filter = "IsPersonalSite eq true";
                     });
 
-                    if (sitesResponse != null && sitesResponse.Value.Any())
-                        sites.AddRange(sitesResponse.Value);
+                    if (personalSitesResponse != null && personalSitesResponse.Value.Any())
+                        sites.AddRange(personalSitesResponse.Value);
 
-                    var nextLink = sitesResponse.OdataNextLink;
+                    // This is the other way to retrieve paged results from GraphAPI SDK. Using OdataNextLink
+                    // https://learn.microsoft.com/en-us/graph/sdks/paging
+                    var nextLink = personalSitesResponse.OdataNextLink;
                     while (nextLink != null)
                     {
-                        var nextSitesResponse = await graphServiceClient.RequestAdapter.SendAsync(new RequestInformation { UrlTemplate = nextLink }, (parseNode) => new SiteCollectionResponse());
+                        var nextSitesResponse = await graphServiceClient.Sites.GetAllSites.WithUrl(nextLink).GetAsGetAllSitesGetResponseAsync();
                         if (nextSitesResponse != null && nextSitesResponse.Value.Any())
                         {
                             sites.AddRange(nextSitesResponse.Value);
@@ -844,7 +795,8 @@ namespace Coginov.GraphApi.Library.Services
                     }
                 }
 
-                // If it is not the tenant root url filter out sites outside current site url
+                // The sites list returned by the search query returns all sites in the tenant. We found no other way to retrieve all sites.
+                // Since this is not a recurring process we can afford it. So, if we are not processing the tenant root url we must filter out sites outside current site url
                 if (!isTenantRoot)
                 {
                     sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl, StringComparison.InvariantCultureIgnoreCase)).ToList();
@@ -853,11 +805,11 @@ namespace Coginov.GraphApi.Library.Services
                 return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
 
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return null;
+                logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message}");
             }
+            return null;
         }
 
         /// <summary>
@@ -896,8 +848,13 @@ namespace Coginov.GraphApi.Library.Services
                     requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and ({searchFilter})";
                     requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
                     requestConfiguration.QueryParameters.Top = top;
+                    //The search for keywords is always done with a set http header "prefer" with the value "HonorNonIndexedQueriesWarningMayFailRandomly" 
+                    //This way we are able to search over index terms that are not mapped in an index. The other option is to add an index to the filed to be filtered
+                    //https://learn.microsoft.com/en-us/answers/questions/1255945/use-graph-api-get-items-on-a-sharepoint-list-with
                     requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
+
+                var foldersIterator = new PageIterator<ListItem, ListItemCollectionResponse>();
 
                 folders.Value.ForEach(x =>
                 {
@@ -911,11 +868,12 @@ namespace Coginov.GraphApi.Library.Services
 
                 return folders.Value;
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return null;
+                logger.LogError($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return null;
         }
 
         /// <summary>
@@ -949,7 +907,7 @@ namespace Coginov.GraphApi.Library.Services
                         var listItemResult = await graphServiceClient.Sites[siteId].Lists[item.SharepointIds.ListId].Items[item.SharepointIds.ListItemId].Fields.PatchAsync(requestBody);
                         result.Add(item, null);
                     }
-                    catch (Exception ex)
+                    catch (ODataError ex)
                     {
                         result.Add(item, ex.Message);
                     }
@@ -957,11 +915,12 @@ namespace Coginov.GraphApi.Library.Services
 
                 return result;
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return null;
+                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return null;
         }
 
         /// <summary>
@@ -988,7 +947,6 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
                         requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
-                        requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                     });
 
                     listItems.Add(listItemResult);
@@ -996,11 +954,12 @@ namespace Coginov.GraphApi.Library.Services
 
                 return await UpdateSharePointOnlineItemFieldValue(listItems, columnKeyValues);
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return null;
+                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return null;
         }
 
         /// <summary>
@@ -1025,7 +984,6 @@ namespace Coginov.GraphApi.Library.Services
                 {
                     requestConfiguration.QueryParameters.Top = batchSize;
                     requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
-                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
                 });
 
                 var driveItemList = new List<DriveItem>();
@@ -1042,43 +1000,37 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
-                return null;
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return null;
         }
 
         #region Exchange Online methods
 
         public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            // The current limit for email size in Office 365 is 15O MB. Tested with a big email and working as expected
+            try
             {
-                try
-                {
-                    string path = Path.Combine(downloadLocation, userAccount, fileName);
-                    System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path));
+                string path = Path.Combine(downloadLocation, userAccount, fileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
 
-                    var email = await graphServiceClient.Users[userAccount].Messages[message.Id].Content.GetAsync();
+                var email = await graphServiceClient.Users[userAccount].Messages[message.Id].Content.GetAsync();
 
-                    using (FileStream outputFileStream = new FileStream(path, FileMode.Create))
-                        email.CopyTo(outputFileStream);
+                using (FileStream outputFileStream = new FileStream(path, FileMode.Create))
+                    email.CopyTo(outputFileStream);
 
-                    return true;
-                }
-                catch (TaskCanceledException)
-                {
-                    // We got a timeout, ignore for now
-                    logger.LogInformation($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next");
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return true;
+            }
+            catch (TaskCanceledException)
+            {
+                // We got a timeout, ignore for now
+                logger.LogInformation($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return false;
@@ -1091,39 +1043,33 @@ namespace Coginov.GraphApi.Library.Services
                 return await graphServiceClient.Users[userAccount].Messages.Count.GetAsync();
 
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessagesCount}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorRetrievingExchangeMessagesCount}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
             return null;
         }
 
         public async Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
             var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
 
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    return await graphServiceClient.Users[userAccount].Messages
-                                                .GetAsync(requestConfiguration =>
-                                                {
-                                                    requestConfiguration.QueryParameters.Filter = filter;
-                                                    requestConfiguration.QueryParameters.Skip = skipIndex;
-                                                    requestConfiguration.QueryParameters.Top = emailCount;
-                                                    requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
-                                                    requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
-                                                });
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return await graphServiceClient.Users[userAccount].Messages
+                                            .GetAsync(requestConfiguration =>
+                                            {
+                                                requestConfiguration.QueryParameters.Filter = filter;
+                                                requestConfiguration.QueryParameters.Skip = skipIndex;
+                                                requestConfiguration.QueryParameters.Top = emailCount;
+                                                requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
+                                                requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
+                                            });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return null;
@@ -1131,34 +1077,27 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
             var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
 
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
+                var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
 
-                    return await  graphRequest.GetAsync(requestConfiguration =>
-                                        {
-                                            if (preferText)
-                                                requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
+                return await  graphRequest.GetAsync(requestConfiguration =>
+                                    {
+                                        if (preferText)
+                                            requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
 
-                                            requestConfiguration.QueryParameters.Filter = filter;
-                                            requestConfiguration.QueryParameters.Skip = skipIndex;
-                                            requestConfiguration.QueryParameters.Top = emailCount;
-                                            requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
-                                            requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
-                                        });
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                                        requestConfiguration.QueryParameters.Filter = filter;
+                                        requestConfiguration.QueryParameters.Skip = skipIndex;
+                                        requestConfiguration.QueryParameters.Top = emailCount;
+                                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
+                                        requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
+                                    });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return null;
@@ -1186,28 +1125,21 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}");
-                return null;
+                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return null;
         }
 
         public async Task<MailFolder> GetEmailFolderById(string userAccount, string folderId)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    return await graphServiceClient.Users[userAccount].MailFolders[folderId].GetAsync();
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return await graphServiceClient.Users[userAccount].MailFolders[folderId].GetAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return null;
@@ -1215,8 +1147,6 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
             var requestBody = new Microsoft.Graph.Users.Item.Messages.Item.Forward.ForwardPostRequestBody
             {
                 ToRecipients = new List<Recipient>{
@@ -1231,23 +1161,17 @@ namespace Coginov.GraphApi.Library.Services
                 }
             };
 
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    await graphServiceClient.Users[userAccount].Messages[emailId]
-                            .Forward
-                            .PostAsync(requestBody);
+                await graphServiceClient.Users[userAccount].Messages[emailId]
+                        .Forward
+                        .PostAsync(requestBody);
 
-                    return true;
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return false;
@@ -1273,25 +1197,17 @@ namespace Coginov.GraphApi.Library.Services
                 }
             };
 
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    await graphServiceClient.Users[fromAccount]
-                            .SendMail
-                            .PostAsync(sendMailBody);
+                await graphServiceClient.Users[fromAccount]
+                        .SendMail
+                        .PostAsync(sendMailBody);
 
-                    return true;
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return false;
@@ -1299,32 +1215,24 @@ namespace Coginov.GraphApi.Library.Services
 
         public async Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder)
         {
-            var retryCount = ConstantHelper.DEFAULT_RETRY_COUNT;
-
-            while (retryCount-- > 0)
+            try
             {
-                try
-                {
-                    var folder = (await GetEmailFolders(userAccount)).FirstOrDefault(x => x.DisplayName.Equals(newFolder, StringComparison.InvariantCultureIgnoreCase));
-                    if (folder == null)
-                        return false;
+                var folder = (await GetEmailFolders(userAccount)).FirstOrDefault(x => x.DisplayName.Equals(newFolder, StringComparison.InvariantCultureIgnoreCase));
+                if (folder == null)
+                    return false;
 
-                    await graphServiceClient.Users[userAccount].Messages[emailId]
-                            .Move
-                            .PostAsync(new Microsoft.Graph.Users.Item.Messages.Item.Move.MovePostRequestBody
-                            {
-                                DestinationId = folder.Id
-                            });
+                await graphServiceClient.Users[userAccount].Messages[emailId]
+                        .Move
+                        .PostAsync(new Microsoft.Graph.Users.Item.Messages.Item.Move.MovePostRequestBody
+                        {
+                            DestinationId = folder.Id
+                        });
 
-                    return true;
-                }
-                catch (ODataError ex)
-                {
-                    var retryInSeconds = GetRetryAfterSeconds(ex);
-                    logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                    logger.LogError(string.Format(Resource.GraphRetryAttempts, retryInSeconds, ConstantHelper.DEFAULT_RETRY_COUNT - retryCount));
-                    Thread.Sleep(retryInSeconds * 1000);
-                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
             }
 
             return false;
@@ -1344,11 +1252,12 @@ namespace Coginov.GraphApi.Library.Services
                 await graphServiceClient.Users[userAccount].Messages[emailId].DeleteAsync();
                 return true;
             }
-            catch (ODataError ex)
+            catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRemovingEmail}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
-                return false;
+                logger.LogError($"{Resource.ErrorRemovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
             }
+
+            return false;
         }
 
         #endregion
@@ -1368,6 +1277,9 @@ namespace Coginov.GraphApi.Library.Services
                 var batch = sites.Skip(index * batchSize).Take(batchSize).ToList();
                 while (batch.Any())
                 {
+                    // Using GraphAPI batch calls to retrieve document libraries for each of the sites:
+                    // https://learn.microsoft.com/en-us/graph/sdks/batch-requests
+                    // https://learn.microsoft.com/en-us/graph/json-batching
                     var batchRequestContent = new BatchRequestContentCollection(graphServiceClient);
                     var requestList = new List<RequestInformation>();
                     var requestIdDictionary = new Dictionary<Site, string>();
@@ -1448,7 +1360,15 @@ namespace Coginov.GraphApi.Library.Services
                     var clientSecretCredential = new ClientSecretCredential(authConfig.Tenant, authConfig.ClientId, authConfig.ClientSecret, options);
                     // Try to get a token to make sure the credentials provided work
                     await clientSecretCredential.GetTokenAsync(new TokenRequestContext(scopes));
-                    graphServiceClient = new GraphServiceClient(clientSecretCredential, scopes);
+
+                    if (authConfig.UseChaosHander)
+                    {
+                        return InitializeWithChaosHandler(clientSecretCredential, scopes);
+                    }
+                    else
+                    {
+                        graphServiceClient = new GraphServiceClient(clientSecretCredential, scopes);
+                    }
                 }
                 else
                 {
@@ -1467,7 +1387,12 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex) when (ex.Message.Contains("AADSTS70011"))
             {
-                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message}");
+                return await Task.FromResult(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message}");
                 return await Task.FromResult(false);
             }
 
@@ -1500,7 +1425,14 @@ namespace Coginov.GraphApi.Library.Services
                 var context = new TokenRequestContext(graphScopes);
                 await interactiveCredential.GetTokenAsync(context);
 
-                graphServiceClient = new GraphServiceClient(interactiveCredential, graphScopes);
+                if (authConfig.UseChaosHander)
+                {
+                    return InitializeWithChaosHandler(interactiveCredential, graphScopes);
+                }
+                else
+                {
+                    graphServiceClient = new GraphServiceClient(interactiveCredential, graphScopes);
+                }
             }
             catch(Exception ex)
             {
@@ -1509,6 +1441,40 @@ namespace Coginov.GraphApi.Library.Services
             }
 
             return true;
+        }
+
+        // We can use ChaosHandler to simulate server failures
+        // https://learn.microsoft.com/en-us/graph/sdks/customize-client?tabs=csharp
+        // https://camerondwyer.com/2021/09/23/how-to-use-the-microsoft-graph-sdk-chaos-handler-to-simulate-graph-api-errors/
+        private bool InitializeWithChaosHandler(TokenCredential credential, string[] scopes)
+        {
+            try
+            {
+                // tokenCredential is one of the credential classes from Azure.Identity
+                // scopes is an array of permission scope strings
+                var authProvider = new AzureIdentityAuthenticationProvider(credential, scopes: scopes);
+
+                var handlers = GraphClientFactory.CreateDefaultHandlers();
+
+                // Remove the default Retry Handler
+                var retryHandler = handlers.Where(h => h is RetryHandler).FirstOrDefault();
+                handlers.Remove(retryHandler);
+
+                // Add a new one ChaosHandler simulates random server failures
+                // Microsoft.Kiota.Http.HttpClientLibrary.Middleware.ChaosHandler
+                handlers.Add(new ChaosHandler(new ChaosHandlerOption()
+                {
+                    ChaosPercentLevel = authConfig.ChaosHandlerPercent
+                }));
+
+                var httpClient = GraphClientFactory.Create(handlers);
+                graphServiceClient = new GraphServiceClient(httpClient, authProvider);
+                return true;
+            }
+            catch(Exception)
+            {
+                return false;
+            }
         }
 
         private async Task<bool> InitializeUsingAccessToken()
@@ -1591,32 +1557,6 @@ namespace Coginov.GraphApi.Library.Services
                 return false;
             else
                 throw new Exception(Resource.ChooseClientOrCertificate);
-        }
-
-        private static X509Certificate2 ReadCertificate(string certificateName)
-        {
-            if (string.IsNullOrWhiteSpace(certificateName))
-                throw new ArgumentException(Resource.CertificateEmpty, nameof(certificateName));
-
-            var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
-            store.Open(OpenFlags.ReadOnly);
-            var certCollection = store.Certificates;
-            var currentCerts = certCollection.Find(X509FindType.FindBySubjectDistinguishedName, certificateName, false);
-            return currentCerts.Count == 0 ? null : currentCerts[0];
-        }
-
-        private int GetRetryAfterSeconds(ODataError ex)
-        {
-            IEnumerable<string> retries;
-            switch (ex.ResponseStatusCode)
-            {
-                case (int)System.Net.HttpStatusCode.TooManyRequests:
-                case (int)System.Net.HttpStatusCode.ServiceUnavailable:
-                case (int)System.Net.HttpStatusCode.GatewayTimeout:
-                    return ex.ResponseHeaders.ContainsKey("Retry-After") ? int.Parse(ex.ResponseHeaders["Retry-After"].First()) : ConstantHelper.DEFAULT_RETRY_IN_SECONDS;
-                default:
-                    return 1;
-            }
         }
 
         private AuthenticationToken InitializeFromTokenPath()
