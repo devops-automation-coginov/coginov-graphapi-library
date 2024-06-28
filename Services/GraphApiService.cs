@@ -1403,14 +1403,9 @@ namespace Coginov.GraphApi.Library.Services
         {
             try
             {
-                // The permission scopes required
-                var graphScopes = new string[] { 
-                    "https://graph.microsoft.com/Files.Read.All",
-                    "https://graph.microsoft.com/Group.Read.All",
-                    "https://graph.microsoft.com/Sites.Read.All",
-                    "https://graph.microsoft.com/User.Read.All",
-                    "https://graph.microsoft.com/Mail.Read.Shared"
-                };
+                // Require only the  permissions listed in the application registration
+                // https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc#the-default-scope
+                var graphScopes = new string[] { $"{authConfig.ApiUrl}.default" };
 
                 var options = new InteractiveBrowserCredentialOptions
                 {
