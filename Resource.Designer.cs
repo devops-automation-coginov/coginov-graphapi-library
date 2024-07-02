@@ -259,6 +259,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error retrieving documents in Folder.
+        /// </summary>
+        internal static string ErrorRetrievingDocuments {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingDocuments", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error retrieving Drive Item.
         /// </summary>
         internal static string ErrorRetrievingDriveItem {
@@ -358,11 +367,29 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error searching folders in Sharepoint document library.
+        /// </summary>
+        internal static string ErrorSearchingFolders {
+            get {
+                return ResourceManager.GetString("ErrorSearchingFolders", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error sending email to recipient.
         /// </summary>
         internal static string ErrorSendingEmail {
             get {
                 return ResourceManager.GetString("ErrorSendingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error updating items in Sharepoint document library.
+        /// </summary>
+        internal static string ErrorUpdatingSharepointItems {
+            get {
+                return ResourceManager.GetString("ErrorUpdatingSharepointItems", resourceCulture);
             }
         }
         
@@ -390,6 +417,24 @@ namespace Coginov.GraphApi.Library {
         internal static string GraphRetryAttempts {
             get {
                 return ResourceManager.GetString("GraphRetryAttempts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid search parameters provided.
+        /// </summary>
+        internal static string InvalidSearchParameters {
+            get {
+                return ResourceManager.GetString("InvalidSearchParameters", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid items update parameters.
+        /// </summary>
+        internal static string InvalidUpdateParameters {
+            get {
+                return ResourceManager.GetString("InvalidUpdateParameters", resourceCulture);
             }
         }
         

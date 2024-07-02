@@ -79,5 +79,8 @@ namespace Coginov.GraphApi.Library.Models
         public AuthMethod AuthenticationMethod { get; set; }
 
         public string TokenPath { get; set; }
+        
+        public bool UseChaosHander { get; set; } = false;
+        public int ChaosHandlerPercent { get; set; } = 50;
     }
 }
