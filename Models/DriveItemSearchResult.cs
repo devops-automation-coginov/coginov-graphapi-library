@@ -10,5 +10,6 @@ namespace Coginov.GraphApi.Library.Models
         public string SkipToken { get; set; }
         public DateTime LastDate {get; set; }
         public bool HasMoreResults { get; set; }
+        public string ErrorMessage { get; set; } = null;
     }
 }
