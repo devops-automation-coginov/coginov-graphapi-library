@@ -241,6 +241,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error retrieving AzureAd Groups.
+        /// </summary>
+        internal static string ErrorRetrievingAzureAdGroups {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingAzureAdGroups", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error Retrieving Document Libraries.
         /// </summary>
         internal static string ErrorRetrievingDocLibraries {
