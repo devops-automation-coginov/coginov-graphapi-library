@@ -177,6 +177,9 @@
   <data name="ErrorRemovingEmail" xml:space="preserve">
     <value>Error removing email</value>
   </data>
+  <data name="ErrorRetrievingAzureAdGroups" xml:space="preserve">
+    <value>Error retrieving AzureAd Groups</value>
+  </data>
   <data name="ErrorRetrievingDocLibraries" xml:space="preserve">
     <value>Error Retrieving Document Libraries</value>
   </data>
