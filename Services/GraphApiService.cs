@@ -245,17 +245,17 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 // Here 'docLibraries' could contain the Doc Libraries to process or null if we want to process all Doc Libraries on the site
-                var siteDrives = await graphServiceClient.Sites[siteId].Drives.GetAsync();
-                var selectedDrives = siteDrives.Value.Where(x => docLibraries == null || docLibraries.Contains(x.Name));
+                var siteDrives = await GetSiteDrives(siteId);
+                var selectedDrives = siteDrives.Where(x => docLibraries == null || docLibraries.Contains(x.Name));
 
                 if (docLibraries == null)
-                    selectedDrives = siteDrives.Value;
+                    selectedDrives = siteDrives;
                 else
                 {
                     foreach (var library in docLibraries)
                     {
                         // Show error if provided Document Library name doesn't exist
-                        if (siteDrives.Value.FirstOrDefault(x => x.Name == library) == null)
+                        if (siteDrives.FirstOrDefault(x => x.Name == library) == null)
                             logger.LogError($"{Resource.LibraryNotFound}: {library}");
                     }
                 }
@@ -456,7 +456,22 @@ namespace Coginov.GraphApi.Library.Services
 
                 return driveItemResult;
             }
-            catch (Exception ex)
+            catch (ODataError ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
+                if (ex.ResponseStatusCode == 403)
+                {
+                    var drive = drivesConnectionInfo.FirstOrDefault(x => x.Id == driveId);
+                    var errorMessage = $"{Resource.ErrorAccessDeniedToDrive}: '{drive?.Name}'. {ex.Message}. {ex.InnerException?.Message}";
+                    logger.LogError(errorMessage);
+                    return new DriveItemSearchResult
+                    {
+                        DocumentIds = new List<DriveItem>(),
+                        ErrorMessage = errorMessage
+                    };
+                }
+            }
+            catch(Exception ex)
             {
                 logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
             }
@@ -755,7 +770,8 @@ namespace Coginov.GraphApi.Library.Services
                     sites = sites.Where(x => x.WebUrl.StartsWith(siteUrl, StringComparison.InvariantCultureIgnoreCase)).ToList();
                 }
 
-                return await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
+                var siteDocs = await GetSiteAndDocLibsDictionary(sites.ToList(), excludeSystemDocLibs);
+                return siteDocs.ToDictionary(x => x.Key, x => x.Value.Select(x => x.Name).ToList());
 
             }
             catch (Exception ex)
@@ -1258,6 +1274,18 @@ namespace Coginov.GraphApi.Library.Services
         #endregion
 
         #region Private Methods
+        private async Task<List<Drive>> GetSiteDrives(string siteId, bool excludeSystemDrives = false)
+        {
+            if (authConfig.AuthenticationMethod != AuthMethod.OAuthAppPermissions)
+                return (await graphServiceClient.Sites[siteId].Drives.GetAsync()).Value;
+
+            var site = await graphServiceClient.Sites[siteId].GetAsync();
+            if (site == null)
+                return null;
+
+            var siteDocs = await GetSiteAndDocLibsDictionary(new List<Site> { site }, excludeSystemDrives);
+            return siteDocs.FirstOrDefault().Value;
+        }
 
         private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath)
         {
@@ -1307,7 +1335,7 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
+        private async Task<Dictionary<string,List<Drive>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
         {
             if (sites == null || !sites.Any()) { return null; }
 
@@ -1315,7 +1343,7 @@ namespace Coginov.GraphApi.Library.Services
             {
                 var batchSize = 20;
                 var index = 0;
-                var siteDocsDictionary = new Dictionary<string, List<string>>();
+                var siteDocsDictionary = new Dictionary<string, List<Drive>>();
 
                 var batch = sites.Skip(index * batchSize).Take(batchSize).ToList();
                 while (batch.Any())
@@ -1331,7 +1359,7 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         var request = graphServiceClient.Sites[item.Id].Drives.ToGetRequestInformation(requestConfiguration =>
                         {
-                            requestConfiguration.QueryParameters.Select = excludeSystemDocLibs ? Array.Empty<string>() : new string[] { "name", "system", "weburl" };
+                            requestConfiguration.QueryParameters.Select = excludeSystemDocLibs ? Array.Empty<string>() : new string[] { "id", "name", "system", "weburl" };
                         });
 
                         requestList.Add(request);
@@ -1349,7 +1377,7 @@ namespace Coginov.GraphApi.Library.Services
                         {
                             var drivesResult = await drivesResponse.GetResponseByIdAsync<DriveCollectionResponse>(item.Value);
                             var drives = drivesResult.Value.DistinctBy(x => x.Name).ToList();
-                            siteDocsDictionary.Add(item.Key.WebUrl, drives.Select(x => x.Name).ToList());
+                            siteDocsDictionary.Add(item.Key.WebUrl, drives);
                         }
                         catch(Exception ex)
                         {

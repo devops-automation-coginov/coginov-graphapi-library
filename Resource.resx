@@ -150,6 +150,9 @@
   <data name="DriveItemUploadProgress" xml:space="preserve">
     <value>Uploaded {0} bytes of {1} bytes</value>
   </data>
+  <data name="ErrorAccessDeniedToDrive" xml:space="preserve">
+    <value>User or Application is not authorized to download from this Drive</value>
+  </data>
   <data name="ErrorDeletingDriveItem" xml:space="preserve">
     <value>Error deleting DriveItem</value>
   </data>
