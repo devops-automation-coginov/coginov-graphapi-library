@@ -219,10 +219,11 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var uri = new Uri(siteUrl);
-                var siteId = await graphServiceClient.Sites[$"{uri.Host}:{uri.PathAndQuery}"].GetAsync(requestConfiguration => 
-                                        {
-                                            requestConfiguration.QueryParameters.Select = new string[] { "id" };
-                                        });                    
+                var siteId = await graphServiceClient.Sites[$"{uri.Host}:{uri.PathAndQuery}"]
+                    .GetAsync(requestConfiguration => 
+                    {
+                        requestConfiguration.QueryParameters.Select = new string[] { "id" };
+                    });                    
                     
 
                 return siteId.Id;
@@ -326,18 +327,20 @@ namespace Coginov.GraphApi.Library.Services
                 // Here 'teams' could contain a list of MsTeams to process or null if we want to process all MsTeams on the organization
                 GroupCollectionResponse groups;
                 if (teams == null)
-                    groups = await graphServiceClient.Groups.GetAsync(requestConfiguration =>
-                                        {
-                                            requestConfiguration.QueryParameters.Filter = "resourceProvisioningOptions/Any(x:x eq 'Team')";
-                                        });
+                    groups = await graphServiceClient.Groups
+                        .GetAsync(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Filter = "resourceProvisioningOptions/Any(x:x eq 'Team')";
+                        });
                 else
                 {
                     var filter = string.Join(" or ", teams.Select(x => $"displayName eq '{x.Trim()}'"));
                     filter = $"({filter}) and resourceProvisioningOptions / Any(x: x eq 'Team')";
-                    groups = await graphServiceClient.Groups.GetAsync(requestConfiguration =>
-                                        {
-                                            requestConfiguration.QueryParameters.Filter = filter;
-                                        });
+                    groups = await graphServiceClient.Groups
+                        .GetAsync(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Filter = filter;
+                        });
 
                     if (groups.Value.Count == 0)
                     {
@@ -400,25 +403,25 @@ namespace Coginov.GraphApi.Library.Services
                 if (string.IsNullOrWhiteSpace(skipToken))
                 {
                     deltaResponse = await graphServiceClient.Drives[drive.Id]
-                            .Items[rootDriveItem.Id]
-                            .Delta
-                            .GetAsDeltaGetResponseAsync(requestConfiguration =>
-                            {
-                                requestConfiguration.QueryParameters.Top = top;
-                                requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
-                            });
+                        .Items[rootDriveItem.Id]
+                        .Delta
+                        .GetAsDeltaGetResponseAsync(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Top = top;
+                            requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
+                        });
 
                 }
                 else
                 {
                     deltaResponse = await graphServiceClient.Drives[drive.Id]
-                            .Items[rootDriveItem.Id]
-                            .DeltaWithToken(skipToken)
-                            .GetAsDeltaWithTokenGetResponseAsync(requestConfiguration =>
-                            {
-                                requestConfiguration.QueryParameters.Top = top;
-                                requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
-                            });
+                        .Items[rootDriveItem.Id]
+                        .DeltaWithToken(skipToken)
+                        .GetAsDeltaWithTokenGetResponseAsync(requestConfiguration =>
+                        {
+                            requestConfiguration.QueryParameters.Top = top;
+                            requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
+                        });
                 }
 
                 var deltaLink = deltaResponse?.OdataNextLink ?? deltaResponse?.OdataDeltaLink;
@@ -466,7 +469,6 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var driveRoot = await GetDriveRoot(driveId);
-
                 return await graphServiceClient.Drives[driveRoot.Id]
                     .Items[documentId]
                     .GetAsync();
@@ -498,7 +500,6 @@ namespace Coginov.GraphApi.Library.Services
                 try
                 {
                     var driveRoot = await GetDriveRoot(driveId);
-
                     var documentStream = await graphServiceClient.Drives[driveRoot.Id].Items[documentId].Content.GetAsync();
 
                     using (FileStream outputFileStream = new FileStream(filePath, FileMode.Create))
@@ -511,54 +512,6 @@ namespace Coginov.GraphApi.Library.Services
                     // We got an error while saving document content. Let's try in chuncks in case it is too big
                     return await SaveDriveItemToFileSystem(document, filePath);
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
-            }
-
-            return null;
-        }
-
-        private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath)
-        {
-            try
-            {
-                document.AdditionalData.TryGetValue("@microsoft.graph.downloadUrl", out var downloadUrl);
-                var documentSize = document.Size;
-                var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
-
-                using (FileStream outputFileStream = new FileStream(filePath.GetFilePathWithTimestamp(), FileMode.Create))
-                {
-                    long offset = 0;
-                    while (offset < documentSize)
-                    {
-                        var chunkSize = documentSize - offset > readSize ? readSize : documentSize - offset;
-                        var req = new HttpRequestMessage(HttpMethod.Get, downloadUrl.ToString());
-                        req.Headers.Range = new RangeHeaderValue(offset, chunkSize + offset - 1);
-
-                        try
-                        {
-                            var graphClientResponse = await graphHttpClient.SendAsync(req);
-                            if (graphClientResponse.StatusCode != System.Net.HttpStatusCode.OK && graphClientResponse.StatusCode != System.Net.HttpStatusCode.PartialContent)
-                                throw new TaskCanceledException();
-
-                            using (var rs = await graphClientResponse.Content.ReadAsStreamAsync())
-                                rs.CopyTo(outputFileStream);
-
-                            offset += readSize;
-                        }
-                        catch (TaskCanceledException)
-                        {
-                            // We got a timeout, try with a smaller chunk size
-                            readSize /= 2;
-                            offset = 0;
-                            outputFileStream.Seek(offset, SeekOrigin.Begin);
-                        }
-                    }
-                }
-
-                return document;
             }
             catch (Exception ex)
             {
@@ -676,9 +629,9 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var driveItem = await graphServiceClient.Drives[driveId]
-                                                        .Items["root"]
-                                                        .ItemWithPath(documentPath)
-                                                        .GetAsync();
+                    .Items["root"]
+                    .ItemWithPath(documentPath)
+                    .GetAsync();
 
                 return await DeleteDocumentById(driveId, driveItem.Id);
             }
@@ -842,17 +795,18 @@ namespace Coginov.GraphApi.Library.Services
 
                 searchFilter ??= $"fields/{searchField} eq '{searchValue}'";
 
-                var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items.GetAsync((requestConfiguration) =>
-                {
-                    requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
-                    requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and ({searchFilter})";
-                    requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
-                    requestConfiguration.QueryParameters.Top = top;
-                    //The search for keywords is always done with a set http header "prefer" with the value "HonorNonIndexedQueriesWarningMayFailRandomly" 
-                    //This way we are able to search over index terms that are not mapped in an index. The other option is to add an index to the filed to be filtered
-                    //https://learn.microsoft.com/en-us/answers/questions/1255945/use-graph-api-get-items-on-a-sharepoint-list-with
-                    requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
-                });
+                var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items
+                    .GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
+                        requestConfiguration.QueryParameters.Filter = $"(fields/ContentType eq 'Document Set' or fields/ContentType eq 'Folder') and ({searchFilter})";
+                        requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
+                        requestConfiguration.QueryParameters.Top = top;
+                        //The search for keywords is always done with a set http header "prefer" with the value "HonorNonIndexedQueriesWarningMayFailRandomly" 
+                        //This way we are able to search over index terms that are not mapped in an index. The other option is to add an index to the filed to be filtered
+                        //https://learn.microsoft.com/en-us/answers/questions/1255945/use-graph-api-get-items-on-a-sharepoint-list-with
+                        requestConfiguration.Headers.Add("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
+                    });
 
                 var foldersIterator = new PageIterator<ListItem, ListItemCollectionResponse>();
 
@@ -943,11 +897,12 @@ namespace Coginov.GraphApi.Library.Services
 
                 foreach (var item in items)
                 {
-                    var listItemResult = await graphServiceClient.Drives[item.DriveId].Items[item.DriveItemId].ListItem.GetAsync((requestConfiguration) =>
-                    {
-                        requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
-                        requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
-                    });
+                    var listItemResult = await graphServiceClient.Drives[item.DriveId].Items[item.DriveItemId].ListItem
+                        .GetAsync((requestConfiguration) =>
+                        {
+                            requestConfiguration.QueryParameters.Expand = new string[] { "fields", "driveItem" };
+                            requestConfiguration.QueryParameters.Select = new string[] { "sharepointIds" };
+                        });
 
                     listItems.Add(listItemResult);
                 }
@@ -980,11 +935,12 @@ namespace Coginov.GraphApi.Library.Services
 
             try
             {
-                var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children.GetAsync((requestConfiguration) =>
-                {
-                    requestConfiguration.QueryParameters.Top = batchSize;
-                    requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
-                });
+                var driveItemResult = await graphServiceClient.Drives[driveItem.DriveId].Items[driveItem.DriveItemId].Children
+                    .GetAsync((requestConfiguration) =>
+                    {
+                        requestConfiguration.QueryParameters.Top = batchSize;
+                        requestConfiguration.QueryParameters.Orderby = new string[] { "lastModifiedDateTime" };
+                    });
 
                 var driveItemList = new List<DriveItem>();
                 var pageIterator = PageIterator<DriveItem, DriveItemCollectionResponse>.CreatePageIterator(graphServiceClient, driveItemResult, (item) => 
@@ -1058,14 +1014,14 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 return await graphServiceClient.Users[userAccount].Messages
-                                            .GetAsync(requestConfiguration =>
-                                            {
-                                                requestConfiguration.QueryParameters.Filter = filter;
-                                                requestConfiguration.QueryParameters.Skip = skipIndex;
-                                                requestConfiguration.QueryParameters.Top = emailCount;
-                                                requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
-                                                requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
-                                            });
+                    .GetAsync(requestConfiguration =>
+                    {
+                        requestConfiguration.QueryParameters.Filter = filter;
+                        requestConfiguration.QueryParameters.Skip = skipIndex;
+                        requestConfiguration.QueryParameters.Top = emailCount;
+                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
+                        requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
+                    });
             }
             catch (Exception ex)
             {
@@ -1083,17 +1039,18 @@ namespace Coginov.GraphApi.Library.Services
             {
                 var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
 
-                return await  graphRequest.GetAsync(requestConfiguration =>
-                                    {
-                                        if (preferText)
-                                            requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
+                return await  graphRequest
+                    .GetAsync(requestConfiguration =>
+                    {
+                        if (preferText)
+                            requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
 
-                                        requestConfiguration.QueryParameters.Filter = filter;
-                                        requestConfiguration.QueryParameters.Skip = skipIndex;
-                                        requestConfiguration.QueryParameters.Top = emailCount;
-                                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
-                                        requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
-                                    });
+                        requestConfiguration.QueryParameters.Filter = filter;
+                        requestConfiguration.QueryParameters.Skip = skipIndex;
+                        requestConfiguration.QueryParameters.Top = emailCount;
+                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
+                        requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
+                    });
             }
             catch (Exception ex)
             {
@@ -1107,10 +1064,11 @@ namespace Coginov.GraphApi.Library.Services
         {
             try
             {
-                var folderResult = await graphServiceClient.Users[userAccount].MailFolders.GetAsync(requestConfiguration =>
-                {
-                    requestConfiguration.QueryParameters.Select = new string[] { "id", "displayName", "totalItemCount" };
-                });
+                var folderResult = await graphServiceClient.Users[userAccount].MailFolders
+                    .GetAsync(requestConfiguration =>
+                    {
+                        requestConfiguration.QueryParameters.Select = new string[] { "id", "displayName", "totalItemCount" };
+                    });
 
                 var folderList = new List<MailFolder>();
                 var pageIterator = PageIterator<MailFolder, MailFolderCollectionResponse>.CreatePageIterator(graphServiceClient, folderResult, (item) =>
@@ -1164,8 +1122,8 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 await graphServiceClient.Users[userAccount].Messages[emailId]
-                        .Forward
-                        .PostAsync(requestBody);
+                    .Forward
+                    .PostAsync(requestBody);
 
                 return true;
             }
@@ -1222,11 +1180,11 @@ namespace Coginov.GraphApi.Library.Services
                     return false;
 
                 await graphServiceClient.Users[userAccount].Messages[emailId]
-                        .Move
-                        .PostAsync(new Microsoft.Graph.Users.Item.Messages.Item.Move.MovePostRequestBody
-                        {
-                            DestinationId = folder.Id
-                        });
+                    .Move
+                    .PostAsync(new Microsoft.Graph.Users.Item.Messages.Item.Move.MovePostRequestBody
+                    {
+                        DestinationId = folder.Id
+                    });
 
                 return true;
             }
@@ -1260,9 +1218,94 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        public async Task<List<string>> GetAzureAdGroupsFromAccessToken(string azureAccessToken)
+        {
+            var groups = new List<string>();
+
+            try
+            {
+                var authenticationProvider = new BaseBearerTokenAuthenticationProvider(new TokenProvider(logger, token: azureAccessToken));
+                var graphServiceClient = new GraphServiceClient(authenticationProvider);
+
+                var memberOfGroups = await graphServiceClient.Me.MemberOf.GetAsync();
+                foreach (var group in memberOfGroups.Value)
+                {
+                    if (group is not Microsoft.Graph.Models.Group)
+                    {
+                        // Skip Groups that are not Azure AD Groups
+                        // This applies to Windows AD Groups on hybrid environments
+                        continue;
+                    }
+
+                    var groupName = ((Microsoft.Graph.Models.Group)group).DisplayName;
+                    if (string.IsNullOrWhiteSpace(groupName))
+                    {
+                        // Fall back mechanism in case that DisplayName is not available
+                        groupName = ((Microsoft.Graph.Models.Group)group).Id;
+                    }
+
+                    groups.Add(groupName);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingAzureAdGroups}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
+            return groups;
+        }
+
         #endregion
 
         #region Private Methods
+
+        private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath)
+        {
+            try
+            {
+                document.AdditionalData.TryGetValue("@microsoft.graph.downloadUrl", out var downloadUrl);
+                var documentSize = document.Size;
+                var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
+
+                using (FileStream outputFileStream = new FileStream(filePath.GetFilePathWithTimestamp(), FileMode.Create))
+                {
+                    long offset = 0;
+                    while (offset < documentSize)
+                    {
+                        var chunkSize = documentSize - offset > readSize ? readSize : documentSize - offset;
+                        var req = new HttpRequestMessage(HttpMethod.Get, downloadUrl.ToString());
+                        req.Headers.Range = new RangeHeaderValue(offset, chunkSize + offset - 1);
+
+                        try
+                        {
+                            var graphClientResponse = await graphHttpClient.SendAsync(req);
+                            if (graphClientResponse.StatusCode != System.Net.HttpStatusCode.OK && graphClientResponse.StatusCode != System.Net.HttpStatusCode.PartialContent)
+                                throw new TaskCanceledException();
+
+                            using (var rs = await graphClientResponse.Content.ReadAsStreamAsync())
+                                rs.CopyTo(outputFileStream);
+
+                            offset += readSize;
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            // We got a timeout, try with a smaller chunk size
+                            readSize /= 2;
+                            offset = 0;
+                            outputFileStream.Seek(offset, SeekOrigin.Begin);
+                        }
+                    }
+                }
+
+                return document;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
+            return null;
+        }
 
         private async Task<Dictionary<string,List<string>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
         {
@@ -1290,6 +1333,7 @@ namespace Coginov.GraphApi.Library.Services
                         {
                             requestConfiguration.QueryParameters.Select = excludeSystemDocLibs ? Array.Empty<string>() : new string[] { "name", "system", "weburl" };
                         });
+
                         requestList.Add(request);
                         requestIdDictionary.Add(item, await batchRequestContent.AddBatchRequestStepAsync(request));
                     }
@@ -1377,6 +1421,7 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
                     };
+
                     var clientCertificate = new X509Certificate2(authConfig.CertificateName);
                     // https://learn.microsoft.com/dotnet/api/azure.identity.clientcertificatecredential
                     var clientCertCredential = new ClientCertificateCredential(authConfig.Tenant, authConfig.ClientId, clientCertificate, options);
