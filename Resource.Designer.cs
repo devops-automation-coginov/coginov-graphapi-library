@@ -160,6 +160,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to User or Application is not authorized to download from this Drive.
+        /// </summary>
+        internal static string ErrorAccessDeniedToDrive {
+            get {
+                return ResourceManager.GetString("ErrorAccessDeniedToDrive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error deleting DriveItem.
         /// </summary>
         internal static string ErrorDeletingDriveItem {
