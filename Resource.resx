@@ -159,6 +159,9 @@
   <data name="ErrorForwardingEmail" xml:space="preserve">
     <value>Error forwarding email to recipient</value>
   </data>
+  <data name="ErrorGettingDriveItemMetadata" xml:space="preserve">
+    <value>Error getting Drive Item Metadata</value>
+  </data>
   <data name="ErrorInitializingGraph" xml:space="preserve">
     <value>Error Initializing Microsoft Graph client</value>
   </data>

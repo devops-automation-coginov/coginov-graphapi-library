@@ -537,6 +537,30 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        public async Task<DriveItem> GetDriveItemMetadata(string driveId, string documentId)
+        {
+            try
+            {
+                var document = await GetDriveItem(driveId, documentId);
+                if (document == null || document.File == null)
+                    return null;
+
+                var drive = await GetSharePointDriveConnectionInfo(driveId);
+                var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
+
+                document.AdditionalData.Add("FilePath", string.Empty);
+                document.AdditionalData.Add("ParentUrl", $"{drive.Path}{document.ParentReference.Path.ExtractStringAfterRoot()}");
+
+                return document;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorGettingDriveItemMetadata}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
+            return null;
+        }
+
         /// <summary>
         /// Uploads a file from the file system to a cloud drive
         /// https://learn.microsoft.com/en-us/graph/sdks/large-file-upload
