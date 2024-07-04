@@ -187,6 +187,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error getting Drive Item Metadata.
+        /// </summary>
+        internal static string ErrorGettingDriveItemMetadata {
+            get {
+                return ResourceManager.GetString("ErrorGettingDriveItemMetadata", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error Initializing Microsoft Graph client.
         /// </summary>
         internal static string ErrorInitializingGraph {
