@@ -511,6 +511,7 @@ namespace Coginov.GraphApi.Library.Services
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
                 document.AdditionalData.Add("FilePath", filePath);
+                document.AdditionalData.Add("ParentUrl", $"{drive.Path}{document.ParentReference.Path.ExtractStringAfterRoot()}");
 
                 try
                 {
