@@ -17,6 +17,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<List<DriveConnectionInfo>> GetMsTeamDrives();
         Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken);
         Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation);
+        Task<DriveItem> GetDriveItemMetadata(string driveId, string documentId);
         Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false, bool excludeSystemDocLibs = false);
         Task<List<string>> GetAzureAdGroupsFromAccessToken(string azureAccessToken);
 
