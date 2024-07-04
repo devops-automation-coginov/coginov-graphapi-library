@@ -36,5 +36,20 @@ namespace Coginov.GraphApi.Library.Helpers
             var path = uri.GetComponents(UriComponents.Path, UriFormat.Unescaped);
             return path.Length == 0;
         }
+
+        public static string ExtractStringAfterRoot(this string input)
+        {
+            // Find the index of "root:"
+            int rootIndex = input.ToLower().IndexOf("root:", StringComparison.OrdinalIgnoreCase);
+
+            if (rootIndex >= 0)
+            {
+                // Extract the substring after "root:"
+                return input.Substring(rootIndex + 5); // 5 is the length of "root:"
+            }
+
+            // "root:" not found in the input
+            return string.Empty; // Return an empty string
+        }
     }
 }
