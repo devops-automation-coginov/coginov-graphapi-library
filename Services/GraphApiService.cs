@@ -25,6 +25,7 @@ using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Authentication.Azure;
+using Microsoft.Graph.Drives.Item.Items.Item.Copy;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -722,6 +723,68 @@ namespace Coginov.GraphApi.Library.Services
                     requestBody.Name = docNewName;
 
                 var result = await graphServiceClient.Drives[driveId].Items[documentId].PatchAsync(requestBody);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Move a document to a different location in another drive.
+        /// https://stackoverflow.com/questions/66478737/invalidrequest-moving-driveitem-between-drives
+        /// </summary>
+        public async Task<bool> MoveDocument(string driveId, string documentId, string destSite, string destDocLib, string destFolderId = null, string destFolder = null, string docNewName = null)
+        {
+            try
+            {
+                siteUrl = destSite;
+                siteId = await GetSiteId(destSite);
+                if (siteId == null)
+                    return false;
+
+                var drives = await GetSharePointOnlineDrives();
+                var destDrive = drives.FirstOrDefault(x => x.Name == destDocLib);
+                if (destDrive == null)
+                    return false;
+
+                if (destFolderId == null)
+                {
+                    var folder = await graphServiceClient.Drives[destDrive.Id].Items["root"].ItemWithPath(destFolder ?? "//").GetAsync();
+
+                    if (folder == null)
+                    {
+                        logger.LogError(Resource.DestinationFolderNotFound);
+                        return false;
+                    }
+
+                    destFolderId = folder.Id;
+                }
+
+                var parentReference = new ItemReference
+                {
+                    DriveId = destDrive.Id,
+                    Id = destFolderId
+                };
+
+                var requestBody = new CopyPostRequestBody
+                {
+                    ParentReference = new ItemReference
+                    {
+                        DriveId = destDrive.Id,
+                        Id = destFolderId,
+                    }
+                };
+
+                if (docNewName != null)
+                    requestBody.Name = docNewName;
+
+                await graphServiceClient.Drives[driveId].Items[documentId].Copy.PostAsync(requestBody);
+
+                await graphServiceClient.Drives[driveId].Items[documentId].DeleteAsync();
                 return true;
             }
             catch (Exception ex)
