@@ -40,7 +40,7 @@ namespace Coginov.GraphApi.Library.Services
         Task<bool> DeleteDocumentById(string driveId, string documentId);
         Task<bool> DeleteDocumentByPath(string driveId, string documentPath);
         Task<bool> MoveDocument(string driveId, string documentId, string destFolderId = null, string destFolder = null, string docNewName = null);
-
+        Task<bool> MoveDocument(string driveId, string documentId, string destSite, string destDocLib, string destFolderId = null, string destFolder = null, string docNewName = null);
 
         // Methods currently only used by the QoreImport tool. Could be used by other projects in the future
         Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true);
