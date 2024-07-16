@@ -258,6 +258,9 @@
   <data name="LibraryNotFound" xml:space="preserve">
     <value>Specified document library not found</value>
   </data>
+  <data name="TimeOutGettingJwtToken" xml:space="preserve">
+    <value>Operation time out, cannot get a valid JWT to process the request</value>
+  </data>
   <data name="TokenUnencrypted" xml:space="preserve">
     <value>Cannot retrieve encrypted token, token may be unencrypted</value>
   </data>
