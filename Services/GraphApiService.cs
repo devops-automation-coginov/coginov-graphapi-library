@@ -26,6 +26,7 @@ using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
 using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Authentication.Azure;
 using Microsoft.Graph.Drives.Item.Items.Item.Copy;
+using System.Threading;
 
 namespace Coginov.GraphApi.Library.Services
 {
@@ -173,7 +174,7 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes)
+        public async Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -189,13 +190,32 @@ namespace Coginov.GraphApi.Library.Services
                 ibc ??= new InteractiveBrowserCredential(options);
 
                 var context = new TokenRequestContext(scopes);
-                var authResult = await ibc.GetTokenAsync(context);
 
-                return authResult.Token;
+                if (cancellationToken == default)
+                {
+                    // If no calcellationToken is passed we call GetTokenAsync this way
+                    var authResult = await ibc.GetTokenAsync(context);
+                    return authResult.Token;
+                }
+
+                // If cancellationToken is passed we need to use this approach to be able to cancel
+                // WARNING: GetTokenAsync is not handeling cancellationToken as expected here
+                // var authResult = await ibc.GetTokenAsync(context, cancellationToken);
+                // WORK AROUND: To cancel the task we wrap the GetTokenAsync call in a task that
+                // can be canceled.
+                // Although this will not truly cancel the underlying operation, it will allow
+                // you to handle the cancellation logic in the client code that calls this method
+                var tokenTask = Task.Run(async () => await ibc.GetTokenAsync(context, cancellationToken), cancellationToken);
+                return (await tokenTask).Token;
+            }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogError($"{Resource.TimeOutGettingJwtToken}. {ex.Message}. {ex.InnerException?.Message}");
+                return null;
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}");
+                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}. {ex.InnerException?.Message}");
                 return null;
             }
         }

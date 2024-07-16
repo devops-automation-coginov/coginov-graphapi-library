@@ -484,6 +484,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Operation time out, cannot get a valid JWT to process the request.
+        /// </summary>
+        internal static string TimeOutGettingJwtToken {
+            get {
+                return ResourceManager.GetString("TimeOutGettingJwtToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Cannot retrieve encrypted token, token may be unencrypted.
         /// </summary>
         internal static string TokenUnencrypted {
