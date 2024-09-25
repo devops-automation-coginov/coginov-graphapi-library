@@ -160,6 +160,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to User or Application is not authorized to download from this Drive.
+        /// </summary>
+        internal static string ErrorAccessDeniedToDrive {
+            get {
+                return ResourceManager.GetString("ErrorAccessDeniedToDrive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error deleting DriveItem.
         /// </summary>
         internal static string ErrorDeletingDriveItem {
@@ -174,6 +183,15 @@ namespace Coginov.GraphApi.Library {
         internal static string ErrorForwardingEmail {
             get {
                 return ResourceManager.GetString("ErrorForwardingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error getting Drive Item Metadata.
+        /// </summary>
+        internal static string ErrorGettingDriveItemMetadata {
+            get {
+                return ResourceManager.GetString("ErrorGettingDriveItemMetadata", resourceCulture);
             }
         }
         
@@ -237,6 +255,15 @@ namespace Coginov.GraphApi.Library {
         internal static string ErrorRemovingEmail {
             get {
                 return ResourceManager.GetString("ErrorRemovingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error retrieving AzureAd Groups.
+        /// </summary>
+        internal static string ErrorRetrievingAzureAdGroups {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingAzureAdGroups", resourceCulture);
             }
         }
         
@@ -453,6 +480,15 @@ namespace Coginov.GraphApi.Library {
         internal static string LibraryNotFound {
             get {
                 return ResourceManager.GetString("LibraryNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Operation time out, cannot get a valid JWT to process the request.
+        /// </summary>
+        internal static string TimeOutGettingJwtToken {
+            get {
+                return ResourceManager.GetString("TimeOutGettingJwtToken", resourceCulture);
             }
         }
         

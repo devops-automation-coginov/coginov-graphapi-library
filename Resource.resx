@@ -150,11 +150,17 @@
   <data name="DriveItemUploadProgress" xml:space="preserve">
     <value>Uploaded {0} bytes of {1} bytes</value>
   </data>
+  <data name="ErrorAccessDeniedToDrive" xml:space="preserve">
+    <value>User or Application is not authorized to download from this Drive</value>
+  </data>
   <data name="ErrorDeletingDriveItem" xml:space="preserve">
     <value>Error deleting DriveItem</value>
   </data>
   <data name="ErrorForwardingEmail" xml:space="preserve">
     <value>Error forwarding email to recipient</value>
+  </data>
+  <data name="ErrorGettingDriveItemMetadata" xml:space="preserve">
+    <value>Error getting Drive Item Metadata</value>
   </data>
   <data name="ErrorInitializingGraph" xml:space="preserve">
     <value>Error Initializing Microsoft Graph client</value>
@@ -176,6 +182,9 @@
   </data>
   <data name="ErrorRemovingEmail" xml:space="preserve">
     <value>Error removing email</value>
+  </data>
+  <data name="ErrorRetrievingAzureAdGroups" xml:space="preserve">
+    <value>Error retrieving AzureAd Groups</value>
   </data>
   <data name="ErrorRetrievingDocLibraries" xml:space="preserve">
     <value>Error Retrieving Document Libraries</value>
@@ -248,6 +257,9 @@
   </data>
   <data name="LibraryNotFound" xml:space="preserve">
     <value>Specified document library not found</value>
+  </data>
+  <data name="TimeOutGettingJwtToken" xml:space="preserve">
+    <value>Operation time out, cannot get a valid JWT to process the request</value>
   </data>
   <data name="TokenUnencrypted" xml:space="preserve">
     <value>Cannot retrieve encrypted token, token may be unencrypted</value>
