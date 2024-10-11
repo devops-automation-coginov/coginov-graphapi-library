@@ -1,0 +1,29 @@
+stages:
+  - deploy
+
+variables:
+  GITHUB_REPO: "https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/devops-automation-coginov/coginov-graphapi-library.git"
+
+#Job for push from develop branch
+deploy_develop_to_github:
+  stage: deploy
+  script:
+    - git config --global user.email "${user_email}"
+    - git config --global user.name "${user_name}"
+    - git checkout develop
+    - git remote add github $GITHUB_REPO
+    - git push github develop:develop
+  only:
+    - develop
+
+#Job for push from main branch
+deploy_main_to_github:
+  stage: deploy
+  script:
+    - git config --global user.email "${user_email}"
+    - git config --global user.name "${user_name}"
+    - git checkout main
+    - git remote add github $GITHUB_REPO
+    - git push github main:main
+  only:
+    - main
