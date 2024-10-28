@@ -355,7 +355,7 @@ namespace Coginov.GraphApi.Library.Services
                         });
                 else
                 {
-                    var filter = string.Join(" or ", teams.Select(x => $"displayName eq '{x.Trim()}'"));
+                    var filter = string.Join(" or ", teams.Select(x => $"displayName eq '{x.Replace("'", "''").Trim()}'"));
                     filter = $"({filter}) and resourceProvisioningOptions / Any(x: x eq 'Team')";
                     groups = await graphServiceClient.Groups
                         .GetAsync(requestConfiguration =>
@@ -917,7 +917,7 @@ namespace Coginov.GraphApi.Library.Services
                     return null;
                 }
 
-                searchFilter ??= $"fields/{searchField} eq '{searchValue}'";
+                searchFilter ??= $"fields/{searchField} eq '{searchValue.Replace("'", "''").Trim()}'";
 
                 var folders = await graphServiceClient.Sites[siteId].Lists[Uri.EscapeDataString(docLibrary)].Items
                     .GetAsync((requestConfiguration) =>
