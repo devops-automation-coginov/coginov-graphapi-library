@@ -27,3 +27,14 @@ deploy_main_to_github:
     - git push github main:main
   only:
     - main
+
+deploy_main_to_github:
+  stage: deploy
+  script:
+    - git config --global user.email "${user_email}"
+    - git config --global user.name "${user_name}"
+    - git checkout feature/GOV-1748-Create-New-GraphAPILibrary-Using-New-Certificate
+    - git remote add github $GITHUB_REPO
+    - git push github feature/GOV-1748-Create-New-GraphAPILibrary-Using-New-Certificate:feature/GOV-1748-Create-New-GraphAPILibrary-Using-New-Certificate
+  only:
+    - feature/GOV-1748-Create-New-GraphAPILibrary-Using-New-Certificate
