@@ -15,7 +15,7 @@ $certPath = "$ArtefactFolder\tempCert.pfx"
 [System.IO.File]::WriteAllBytes($certPath, $buffer)
 
 # Firmar el ensamblado usando signtool con SHA-256
-Start-Process -FilePath "C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64\signtool.exe" -ArgumentList @(
+Start-Process -FilePath "signtool.exe" -ArgumentList @(
     "sign",
     "/f", $certPath,
     "/fd", "SHA256",
