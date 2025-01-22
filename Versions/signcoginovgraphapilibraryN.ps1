@@ -17,7 +17,7 @@ $env:SM_CLIENT_CERT_FILE = $SM_CLIENT_CERT_FILE
 $env:SM_CLIENT_CERT_PASSWORD = $SM_CLIENT_CERT_PASSWORD
 $env:SM_API_KEY = $SM_API_KEY
 $env:SM_HOST="https://clientauth.one.digicert.com"
-$path = "$(System.DefaultWorkingDirectory)\bin\Debug\net8.0\"
+$path = "$ArtefactFolder\bin\Debug\net8.0\"
 $pattern = "Coginov*"
 $confirmSign = $true
 Get-ChildItem -Path $path -Recurse -Include ("$pattern.dll") | ForEach-Object { 
