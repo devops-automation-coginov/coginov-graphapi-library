@@ -28,8 +28,6 @@ deploy_main_to_github:
   only:
     - main
 
-feature/GOV-1815-Sign-Coginov-GraphApi-Library-With-The-Official-Certificate
-
 deploy_main_to_github:
   stage: deploy
   script:
