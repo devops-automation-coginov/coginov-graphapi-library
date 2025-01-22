@@ -26,12 +26,12 @@ Get-ChildItem -Path $path -Recurse -Include ("$pattern.dll") | ForEach-Object {
 
 # Confirmar si se deben firmar los archivos
 if ($confirmSign) {
-    Write-Host "Iniciando el proceso de firma de archivos..."
+    Write-Host "Started sign files process..."
 
     # Procesar cada archivo encontrado
     Get-ChildItem -Path $path -Recurse -Include ("$pattern.dll") | ForEach-Object {
         $filePath = $_.FullName
-        Write-Host "Firmando archivo: $filePath"
+        Write-Host "Signing file: $filePath"
         
         # Comando para firmar
         & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe" sign `
@@ -45,12 +45,12 @@ if ($confirmSign) {
         
         # Verificar el código de salida del comando de firma
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "Error al firmar el archivo: $filePath. Código de error: $LASTEXITCODE"
+            Write-Host "Error try to sign filed: $filePath. Error code: $LASTEXITCODE"
         } else {
-            Write-Host "Archivo firmado con éxito: $filePath"
+            Write-Host "File singned succesfully: $filePath"
         }
     }
 } else {
-    Write-Host "Operación cancelada. No se firmaron archivos."
+    Write-Host "Aborted Singning Operation."
 }
 #END
