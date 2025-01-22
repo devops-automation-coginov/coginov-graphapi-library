@@ -37,7 +37,7 @@ if ($confirmSign) {
         & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe" sign `
             /csp "DigiCert Signing Manager KSP" `
             /kc $SM_KC_KEY `
-            /f $SM_KC_KEY `
+            /f $SM_F_CERT `
             /tr "http://timestamp.digicert.com" `
             /td SHA256 `
             /fd SHA256 `
