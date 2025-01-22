@@ -27,3 +27,16 @@ deploy_main_to_github:
     - git push github main:main
   only:
     - main
+
+feature/GOV-1815-Sign-Coginov-GraphApi-Library-With-The-Official-Certificate
+
+deploy_main_to_github:
+  stage: deploy
+  script:
+    - git config --global user.email "${user_email}"
+    - git config --global user.name "${user_name}"
+    - git checkout feature/GOV-1815-Sign-Coginov-GraphApi-Library-With-The-Official-Certificate
+    - git remote add github $GITHUB_REPO
+    - git push github feature/GOV-1815-Sign-Coginov-GraphApi-Library-With-The-Official-Certificate:feature/GOV-1815-Sign-Coginov-GraphApi-Library-With-The-Official-Certificate
+  only:
+    - feature/GOV-1815-Sign-Coginov-GraphApi-Library-With-The-Official-Certificate
