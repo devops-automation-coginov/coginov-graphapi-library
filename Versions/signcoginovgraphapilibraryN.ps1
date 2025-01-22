@@ -2,20 +2,20 @@ param (
     [Parameter(Mandatory)]
     [string]$ArtefactFolder,
     [Parameter(Mandatory)]
-    [string]$SM-CLIENT-CERT-FILE,
+    [string]$SM_CLIENT_CERT_FILE,
     [Parameter(Mandatory)]
     [string]$SM_CLIENT_CERT_PASSWORD,
     [Parameter(Mandatory)]
-    [string]$SM-API-KEY,
+    [string]$SM_API_KEY,
     [Parameter(Mandatory)]
-    [string]$SM-KC-KEY,
+    [string]$SM_KC_KEY,
     [Parameter(Mandatory)]
-    [string]$SM-F-CERT
+    [string]$SM_F_CERT
 )
 
-$env:SM-CLIENT-CERT-FILE = $SM-CLIENT-CERT-FILE
-$env:SM-CLIENT-CERT-PASSWORD = $SM-CLIENT-CERT-PASSWORD
-$env:SM-API-KEY = $SM-API-KEY
+$env:SM-CLIENT-CERT-FILE = $SM_CLIENT_CERT_FILE
+$env:SM-CLIENT-CERT-PASSWORD = $SM_CLIENT_CERT_PASSWORD
+$env:SM-API-KEY = $SM_API_KEY
 $env:SM_HOST="https://clientauth.one.digicert.com"
 $path = "$(System.DefaultWorkingDirectory)\bin\Debug\net8.0\"
 $pattern = "Coginov*"
@@ -36,8 +36,8 @@ if ($confirmSign) {
         # Comando para firmar
         & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe" sign `
             /csp "DigiCert Signing Manager KSP" `
-            /kc $SM-KC-KEY `
-            /f $SM-F-CERT `
+            /kc $SM_KC_KEY `
+            /f $SM_KC_KEY `
             /tr "http://timestamp.digicert.com" `
             /td SHA256 `
             /fd SHA256 `
