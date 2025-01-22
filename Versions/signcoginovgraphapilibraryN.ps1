@@ -13,7 +13,7 @@ param (
     [string]$SM_F_CERT
 )
 
-$env:SM_CLIENT_CERT-FILE = $SM_CLIENT_CERT_FILE
+$env:SM_CLIENT_CERT_FILE = $SM_CLIENT_CERT_FILE
 $env:SM_CLIENT_CERT_PASSWORD = $SM_CLIENT_CERT_PASSWORD
 $env:SM_API_KEY = $SM_API_KEY
 $env:SM_HOST="https://clientauth.one.digicert.com"
