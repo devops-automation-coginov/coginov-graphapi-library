@@ -4,50 +4,61 @@ param (
     [Parameter(Mandatory)]
     [string]$SMsasTokenPKCS,
     [Parameter(Mandatory)]
-	[string]$SMfilePKCS,
-	
+    [string]$SMfilePKCS,
     [Parameter(Mandatory)]
     [string]$SMstorageUrlCogCRT,
     [Parameter(Mandatory)]
     [string]$SMsasTokenCogCRT,
-	[Parameter(Mandatory)]
-	[string]$SMfileCogCRT,
-	
+    [Parameter(Mandatory)]
+    [string]$SMfileCogCRT,
     [Parameter(Mandatory)]
     [string]$SMstorageUrlDgcCA,
     [Parameter(Mandatory)]
     [string]$SMsasTokenDgcCA,
-	[Parameter(Mandatory)]
-	[string]$SMfileDgcCA,
-	
-	[Parameter(Mandatory)]
+    [Parameter(Mandatory)]
+    [string]$SMfileDgcCA,
+    [Parameter(Mandatory)]
     [string]$SMstorageUrlTR,
     [Parameter(Mandatory)]
     [string]$SMsasTokenTR,
-	[Parameter(Mandatory)]
-	[string]$SMfileTR
+    [Parameter(Mandatory)]
+    [string]$SMfileTR
 )
+
 $folderPath = "C:\signStuff"
-$localPathPKCS = "$folderPath\$SMfilePKCS"
-$localPathCRT = "$folderPath\SMfileCogCRT"
-$localPathDgcCA = "$folderPath\$SMfileDgcCA"
-$localPathTR = "$folderPath\$SMfileTR"
+
+# Crear carpeta
 New-Item -ItemType Directory -Path $folderPath -Force
 
-# Downloading file
-Invoke-WebRequest -Uri "$storageUrlPKCS?$sasTokenPKCS" -OutFile $localPathPKCS
-Write-Host "Archivo descargado: $localPathPKCS"
+# Rutas locales
+$localPathPKCS = "$folderPath\$SMfilePKCS"
+$localPathCRT = "$folderPath\$SMfileCogCRT"
+$localPathDgcCA = "$folderPath\$SMfileDgcCA"
+$localPathTR = "$folderPath\$SMfileTR"
 
-# Downloading file
-Invoke-WebRequest -Uri "$storageUrlCogCRT?$sasTokenCogCRT" -OutFile $localPathCRT
-Write-Host "Archivo descargado: $localPathCRT"
-	  
-# Downloading file
-Invoke-WebRequest -Uri "$storageUrlDgcCA?$sasTokenDgcCA" -OutFile $localPathDgcCA
-Write-Host "Archivo descargado: $localPathDgcCA"
+# Función para descargar archivos
+function Download-File {
+    param (
+        [string]$storageUrl,
+        [string]$sasToken,
+        [string]$localPath
+    )
+    if (-not $storageUrl -or -not $sasToken) {
+        Write-Host "Error: La URL o el token SAS están vacíos."
+        return
+    }
+    $uri = "$storageUrl?$sasToken"
+    try {
+        Write-Host "Descargando archivo desde: $uri"
+        Invoke-WebRequest -Uri $uri -OutFile $localPath
+        Write-Host "Archivo descargado: $localPath"
+    } catch {
+        Write-Host "Error al descargar archivo desde: $uri. Detalles: $_"
+    }
+}
 
-# Downloading file
-Invoke-WebRequest -Uri "$storageUrlTR?$sasTokenTR" -OutFile $localPathTR
-Write-Host "Archivo descargado: $localPathTR"
-
-dir "$folderPath"
+# Descargar archivos
+Download-File -storageUrl $SMstorageUrlPKCS -sasToken $SMsasTokenPKCS -localPath $localPathPKCS
+Download-File -storageUrl $SMstorageUrlCogCRT -sasToken $SMsasTokenCogCRT -localPath $localPathCRT
+Download-File -storageUrl $SMstorageUrlDgcCA -sasToken $SMsasTokenDgcCA -localPath $localPathDgcCA
+Download-File -storageUrl $SMstorageUrlTR -sasToken $SMsasTokenTR -localPath $localPathTR
