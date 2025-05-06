@@ -210,6 +210,9 @@
   <data name="ErrorRetrievingExchangeMessagesCount" xml:space="preserve">
     <value>Error retrieving Exchange messages count</value>
   </data>
+  <data name="ErrorRetrievingExchangeMessagesFromNextLink" xml:space="preserve">
+    <value>Error retrieving messages from Exchange NextLink</value>
+  </data>
   <data name="ErrorRetrievingSiteId" xml:space="preserve">
     <value>Error retrieving Site Id</value>
   </data>
