@@ -25,7 +25,14 @@ namespace Coginov.GraphApi.Library.Services
         // Methods used by QoreAudit and QoreMail
         Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false);
         Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false);
-        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string Folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false);
+        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false);
+
+        // The following two methods has been implemented to correct pagination issues found on revious method. The use of skipIndex is not recommended
+        // - GetEmailsFromFolderAfterDate: used on the first call and then we call the following method with OdataNextLink 
+        // - GetEmailsFromNextLink: with OdataNextLink we make sure pagination works correctly
+        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int emailCount = 10, bool includeAttachments = false, bool preferText = false);
+        Task<MessageCollectionResponse> GetEmailsFromNextLink(string nextLink);
+
         Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName);
         Task<MailFolder> GetEmailFolderById(string userAccount, string folderId);
         Task<List<MailFolder>> GetEmailFolders(string userAccount);

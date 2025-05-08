@@ -340,6 +340,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error retrieving messages from Exchange NextLink.
+        /// </summary>
+        internal static string ErrorRetrievingExchangeMessagesFromNextLink {
+            get {
+                return ResourceManager.GetString("ErrorRetrievingExchangeMessagesFromNextLink", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error retrieving Site Id.
         /// </summary>
         internal static string ErrorRetrievingSiteId {
