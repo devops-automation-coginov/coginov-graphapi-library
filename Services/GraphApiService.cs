@@ -1199,9 +1199,16 @@ namespace Coginov.GraphApi.Library.Services
             bool includeAttachments = false,
             bool preferText = false)
         {
+            // WARNING: DO NOT CONVERT afterDate to universal time like next line
+            // This was the reason why this function was not finding emails in an
+            // specific date after processing the first batch:
+            // var filter = $"createdDateTime ge {afterDate.ToUniversalTime():s}Z"; 
+
+            // IMPORTANT: We need to create the filter this way to avoid UTC issues:
+            // $"createdDateTime ge {afterDate.ToString("s")}Z";
             // Using "ge" instead of "gt" to include messages with the same timestamp
-            var filter = $"createdDateTime ge {afterDate.ToUniversalTime():s}Z";
-            //var filter = $"createdDateTime ge {afterDate.ToString("s")}Z";
+            // The the caller needs to de-duplicate and remove emails already processed
+            var filter = $"createdDateTime ge {afterDate.ToString("s")}Z";
 
             try
             {
