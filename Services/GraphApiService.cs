@@ -1155,7 +1155,14 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false)
+        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(
+            string userAccount, 
+            string folder, 
+            DateTime afterDate, 
+            int skipIndex = 0, 
+            int emailCount = 10, 
+            bool includeAttachments = false, 
+            bool preferText = false)
         {
             var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
 
@@ -1182,6 +1189,79 @@ namespace Coginov.GraphApi.Library.Services
             }
 
             return null;
+        }
+
+        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(
+            string userAccount,
+            string folder,
+            DateTime afterDate,
+            int pageSize = 10,
+            bool includeAttachments = false,
+            bool preferText = false)
+        {
+            // WARNING: DO NOT CONVERT afterDate to universal time like next line
+            // This was the reason why this function was not finding emails in an
+            // specific date after processing the first batch:
+            // var filter = $"createdDateTime ge {afterDate.ToUniversalTime():s}Z"; 
+
+            // IMPORTANT: We need to create the filter this way to avoid UTC issues:
+            // $"createdDateTime ge {afterDate.ToString("s")}Z";
+            // Using "ge" instead of "gt" to include messages with the same timestamp
+            // The the caller needs to de-duplicate and remove emails already processed
+            var filter = $"createdDateTime ge {afterDate.ToString("s")}Z";
+
+            try
+            {
+                var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
+
+                return await graphRequest.GetAsync(requestConfiguration =>
+                {
+                    var preferHeader = "outlook.timezone=\"UTC\"";
+                    if (preferText)
+                    {
+                        preferHeader += ", outlook.body-content-type=\"text\"";
+                    }
+
+                    requestConfiguration.Headers.Add("Prefer", preferHeader);
+
+                    requestConfiguration.QueryParameters.Filter = filter;
+                    requestConfiguration.QueryParameters.Top = pageSize;
+                    requestConfiguration.QueryParameters.Orderby = new[] { "createdDateTime asc" };
+
+                    // Select only the fields you need (recommended for performance)
+                    requestConfiguration.QueryParameters.Select = GraphHelper.SelectedEmailFields;
+
+                    if (includeAttachments)
+                    {
+                        requestConfiguration.QueryParameters.Expand = new[] { "attachments" };
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
+                return null;
+            }
+        }
+
+        public async Task<MessageCollectionResponse> GetEmailsFromNextLink(string nextLink)
+        {
+            try
+            {
+                return await graphServiceClient.RequestAdapter.SendAsync(
+                    new RequestInformation
+                    {
+                        HttpMethod = Method.GET,
+                        UrlTemplate = nextLink,
+                        PathParameters = new Dictionary<string, object>() // required even if empty
+                    },
+                    MessageCollectionResponse.CreateFromDiscriminatorValue);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingExchangeMessagesFromNextLink}: {ex.Message}. {ex.InnerException?.Message}");
+                return null;
+            }
         }
 
         public async Task<List<MailFolder>> GetEmailFolders(string userAccount)

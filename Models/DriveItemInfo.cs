@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Coginov.GraphApi.Library.Models
+﻿namespace Coginov.GraphApi.Library.Models
 {
     public class DriveItemInfo
     {

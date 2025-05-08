@@ -9,6 +9,24 @@ namespace Coginov.GraphApi.Library.Helpers
 {
     public static class GraphHelper
     {
+        public static readonly string[] SelectedEmailFields = new[]
+        {
+            "id",                   // Unique message ID
+            "internetMessageId",    // Unique internet message ID (for deduplication)
+            "createdDateTime",      // Date and time the message was created
+            "subject",              // Message subject
+            "from",                 // Sender
+            "toRecipients",         // Recipients
+            "hasAttachments",       // Whether the message has attachments
+            "body",                 // Full message body (if required)
+            "ccRecipients",         // CC recipients (if needed)
+            "bccRecipients",        // BCC recipients (if needed)
+            "replyTo",              // Reply To (if needed)
+            "importance",           // Importance of the message
+            "receivedDateTime",     // Date and time message was received
+            "sentDateTime"          // Date and time message was sent
+        };
+
         public static Dictionary<string, object> GetFieldValues(this ListItem item)
         {
             return item.Fields.AdditionalData.ToDictionary(x => x.Key, x => x.Value);
