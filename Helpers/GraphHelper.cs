@@ -24,7 +24,8 @@ namespace Coginov.GraphApi.Library.Helpers
             "replyTo",              // Reply To (if needed)
             "importance",           // Importance of the message
             "receivedDateTime",     // Date and time message was received
-            "sentDateTime"          // Date and time message was sent
+            "sentDateTime",         // Date and time message was sent
+            "parentFolderId"        // ID of the parent folder
         };
 
         public static Dictionary<string, object> GetFieldValues(this ListItem item)

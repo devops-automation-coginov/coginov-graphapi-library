@@ -32,42 +32,113 @@ namespace Coginov.GraphApi.Library.Services
 {
     public class GraphApiService : IGraphApiService
     {
+        /// <summary>
+        /// The logger instance used for logging messages within this service.
+        /// </summary>
         private readonly ILogger logger;
+
+        /// <summary>
+        /// Configuration settings for authentication with Microsoft Graph API.
+        /// </summary>
         private AuthenticationConfig authConfig;
+
+        /// <summary>
+        /// HttpClient instance used for making HTTP requests to the Microsoft Graph API, primarily for large file downloads.
+        /// </summary>
         private HttpClient graphHttpClient;
+
+        /// <summary>
+        /// The Microsoft Graph service client used for interacting with the Microsoft Graph API.
+        /// </summary>
         private GraphServiceClient graphServiceClient;
+
+        /// <summary>
+        /// A list to store connection information for drives (document libraries), particularly for SharePoint and Teams.
+        /// </summary>
         private List<DriveConnectionInfo> drivesConnectionInfo = new List<DriveConnectionInfo>();
+
+        /// <summary>
+        /// Specifies the type of connection being used with Microsoft Graph (e.g., OneDrive, SharePoint, Teams).
+        /// </summary>
         private DriveConnectionType connectionType;
+
+        /// <summary>
+        /// The user principal name (UPN) or object ID of the user, used primarily for OneDrive connections.
+        /// </summary>
         private string userId;
+
+        /// <summary>
+        /// The unique identifier of the SharePoint site.
+        /// </summary>
         private string siteId;
+
+        /// <summary>
+        /// An object holding the authentication token retrieved for accessing Microsoft Graph.
+        /// </summary>
         private AuthenticationToken authenticationToken;
+
+        /// <summary>
+        /// An instance of the InteractiveBrowserCredential used for delegated permissions authentication.
+        /// </summary>
         private InteractiveBrowserCredential ibc;
 
         // SharePointOnline
+        /// <summary>
+        /// The URL of the SharePoint site.
+        /// </summary>
         private string siteUrl;
+        /// <summary>
+        /// An array of document library names within the SharePoint site.
+        /// </summary>
         private string[] docLibraries;
 
         // OneDrive
+        /// <summary>
+        /// The user principal name (UPN) or object ID of the user for OneDrive access.
+        /// </summary>
         private string oneDriveUserAccount;
 
         // MsTeams
+        /// <summary>
+        /// An array of Microsoft Teams identifiers (e.g., group IDs).
+        /// </summary>
         private string[] teams;
 
-        // This setting is to simulate GraphApi errors during development
+        /// <summary>
+        /// A flag to enable or disable the Chaos Handler, which simulates random Graph API errors for development and testing purposes. Defaults to <c>false</c>.
+        /// </summary>
         private bool useChaosHandler = false;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GraphApiService"/> class with the provided logger.
+        /// </summary>
+        /// <param name="logger">The logger instance to use for logging messages.</param>
         public GraphApiService(ILogger logger)
         {
             this.logger = logger;
         }
 
+        /// <summary>
+        /// Initializes the Microsoft Graph API service using the provided authentication configuration.
+        /// </summary>
+        /// <param name="authenticationConfig">The <see cref="AuthenticationConfig"/> object containing the necessary authentication parameters.</param>
+        /// <param name="forceInit">Optional. A boolean value indicating whether to force re-initialization even if the service is already initialized. Defaults to <c>true</c>.</param>
+        /// <returns><c>true</c> if the initialization was successful; otherwise, <c>false</c>.</returns>
         public async Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true)
         {
             this.authConfig = authenticationConfig;
             return await IsInitialized(forceInit);
         }
 
-        public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false)
+        /// <summary>
+        /// Initializes the connection to SharePoint Online.
+        /// </summary>
+        /// <param name="authenticationConfig">The authentication configuration for connecting to Microsoft Graph.</param>
+        /// <param name="siteUrl">The URL of the SharePoint Online site.</param>
+        /// <param name="docLibraries">An array of document library names within the site to interact with.</param>
+        /// <param name="forceInit">A boolean value indicating whether to force re-initialization even if already initialized.</param>
+        /// <returns>A boolean value indicating whether the initialization was successful.</returns>
+        public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
             this.siteUrl = siteUrl; 
@@ -94,7 +165,14 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount, bool forceInit = false)
+        /// <summary>
+        /// Initializes the connection to a user's OneDrive for Business.
+        /// </summary>
+        /// <param name="authenticationConfig">The authentication configuration for connecting to Microsoft Graph.</param>
+        /// <param name="userAccount">The user's email address or principal name for accessing their OneDrive.</param>
+        /// <param name="forceInit">A boolean value indicating whether to force re-initialization even if already initialized.</param>
+        /// <returns>A boolean value indicating whether the initialization was successful.</returns>
+        public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
             this.oneDriveUserAccount = userAccount;
@@ -120,7 +198,14 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams, bool forceInit = false)
+        /// <summary>
+        /// Initializes the connection to Microsoft Teams.
+        /// </summary>
+        /// <param name="authenticationConfig">The authentication configuration for connecting to Microsoft Graph.</param>
+        /// <param name="teams">An optional array of Microsoft Teams IDs to interact with. If null, interacts with all accessible teams.</param>
+        /// <param name="forceInit">A boolean value indicating whether to force re-initialization even if already initialized.</param>
+        /// <returns>A boolean value indicating whether the initialization was successful.</returns>
+        public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams, bool forceInit = false)
         {
             this.authConfig = authenticationConfig;
             this.teams = teams;
@@ -142,7 +227,13 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false)
+        /// <summary>
+        /// Initializes the connection to Exchange Online.
+        /// </summary>
+        /// <param name="authenticationConfig">The authentication configuration for connecting to Microsoft Graph.</param>
+        /// <param name="forceInit">A boolean value indicating whether to force re-initialization even if already initialized.</param>
+        /// <returns>A boolean value indicating whether the initialization was successful.</returns>
+        public async Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false)
         {
             authConfig = authenticationConfig;
             if (!await IsInitialized(forceInit))
@@ -152,7 +243,15 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        public async Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes)
+        /// <summary>
+        /// Retrieves an access token using application permissions.
+        /// </summary>
+        /// <param name="tenantId">The ID of the Azure Active Directory tenant.</param>
+        /// <param name="clientId">The client ID (application ID) of the Azure AD application.</param>
+        /// <param name="clientSecret">The client secret of the Azure AD application.</param>
+        /// <param name="scopes">An array of scopes required for the access token.</param>
+        /// <returns>The access token as a string, or null if an error occurs.</returns>
+        public async Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes)
         {
             try
             {
@@ -174,7 +273,15 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Retrieves an access token using delegated permissions, requiring user interaction through a browser.
+        /// </summary>
+        /// <param name="tenantId">The ID of the Azure Active Directory tenant.</param>
+        /// <param name="clientId">The client ID (application ID) of the Azure AD application.</param>
+        /// <param name="scopes">An array of scopes required for the access token.</param>
+        /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
+        /// <returns>The access token as a string, or null if an error occurs or the operation is cancelled.</returns>
+        public async Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -220,7 +327,12 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<string> GetUserId(string user)
+        /// <summary>
+        /// Retrieves the unique identifier (ID) of a user from Microsoft Graph.
+        /// </summary>
+        /// <param name="user">The user's principal name (UPN) or email address.</param>
+        /// <returns>The user's ID as a string, or null if the user is not found or an error occurs.</returns>
+        public async Task<string> GetUserId(string user)
         {
             try
             {
@@ -235,7 +347,12 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<string> GetSiteId(string siteUrl)
+        /// <summary>
+        /// Retrieves the unique identifier (ID) of a SharePoint Online site from its URL.
+        /// </summary>
+        /// <param name="siteUrl">The full URL of the SharePoint Online site.</param>
+        /// <returns>The site's ID as a string, or null if the site is not found or an error occurs.</returns>
+        public async Task<string> GetSiteId(string siteUrl)
         {
             try
             {
@@ -256,7 +373,11 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<List<DriveConnectionInfo>> GetSharePointOnlineDrives()
+        /// <summary>
+        /// Retrieves a list of document library drive information for the configured SharePoint Online site.
+        /// </summary>
+        /// <returns>A list of <see cref="DriveConnectionInfo"/> objects representing the document libraries, or an empty list if an error occurs.</returns>
+        public async Task<List<DriveConnectionInfo>> GetSharePointOnlineDrives()
         {
             drivesConnectionInfo = new List<DriveConnectionInfo>();
             if (docLibraries != null)
@@ -307,6 +428,10 @@ namespace Coginov.GraphApi.Library.Services
             return drivesConnectionInfo;
         }
 
+        /// <summary>
+        /// Retrieves a list of drive information for the configured OneDrive for Business user.
+        /// </summary>
+        /// <returns>A list of <see cref="DriveConnectionInfo"> objects representing the user's OneDrive drives, or an empty list if an error occurs.</returns>
         public async Task<List<DriveConnectionInfo>> GetOneDriveDrives()
         {
             drivesConnectionInfo = new List<DriveConnectionInfo>();
@@ -336,7 +461,11 @@ namespace Coginov.GraphApi.Library.Services
             return drivesConnectionInfo;
         }
 
-        public async Task<List<DriveConnectionInfo>> GetMsTeamDrives()
+        /// <summary>
+        /// Retrieves a list of drive information for the configured Microsoft Teams.
+        /// </summary>
+        /// <returns>A list of <see cref="DriveConnectionInfo"/> objects representing the Team drives, or an empty list if an error occurs.</returns>
+        public async Task<List<DriveConnectionInfo>> GetMsTeamDrives()
         {
             drivesConnectionInfo = new List<DriveConnectionInfo>();
             if (teams != null)
@@ -411,6 +540,16 @@ namespace Coginov.GraphApi.Library.Services
             return drivesConnectionInfo;
         }
 
+        /// <summary>
+        /// Retrieves a list of document IDs and metadata from a specific drive, using delta queries for incremental changes.
+        /// </summary>
+        /// <param name="driveId">The ID of the drive to query.</param>
+        /// <param name="lastDate">The last known date of changes. Used for initial delta query. Subsequent calls use the skip token.</param>
+        /// <param name="top">The maximum number of items to retrieve in a single request (for pagination).</param>
+        /// <param name="skipToken">A token used to retrieve the next page of delta results. Null for the initial request.</param>
+        /// <returns>A <see cref="DriveItemSearchResult"/> object containing the list of document IDs, information about more results, the new 
+        /// skip token, and the latest modified date, or null if an error occurs.
+        /// </returns>
         public async Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken)
         {
             try
@@ -500,7 +639,13 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<DriveItem> GetDriveItem(string driveId, string documentId)
+        /// <summary>
+        /// Retrieves the metadata of a specific item (file or folder) from a drive.
+        /// </summary>
+        /// <param name="driveId">The ID of the drive containing the item.</param>
+        /// <param name="documentId">The ID of the item to retrieve.</param>
+        /// <returns>A <see cref="DriveItem"/> object representing the item's metadata, or null if an error occurs.</returns>
+        public async Task<DriveItem> GetDriveItem(string driveId, string documentId)
         {
             try
             {
@@ -517,7 +662,14 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation)
+        /// <summary>
+        /// Downloads a specific item (file) from a drive and saves it to the local file system.
+        /// </summary>
+        /// <param name="driveId">The ID of the drive containing the item.</param>
+        /// <param name="documentId">The ID of the item to download.</param>
+        /// <param name="downloadLocation">The local path where the file should be saved.</param>
+        /// <returns>A <see cref="DriveItem"/> object representing the item's metadata with added local file path, or null if an error occurs.</returns>
+        public async Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation)
         {
             try
             {
@@ -558,7 +710,14 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<DriveItem> GetDriveItemMetadata(string driveId, string documentId)
+        /// <summary>
+        /// Retrieves the metadata of a specific item (file) from a drive and adds the parent URL and an empty file path to its additional data.
+        /// This method is intended for retrieving metadata without downloading the file content.
+        /// </summary>
+        /// <param name="driveId">The ID of the drive containing the item.</param>
+        /// <param name="documentId">The ID of the item to retrieve metadata for.</param>
+        /// <returns>A <see cref="DriveItem"/> object representing the item's metadata with added 'ParentUrl' and empty 'FilePath' in AdditionalData, or null if an error occurs.</returns>
+        public async Task<DriveItem> GetDriveItemMetadata(string driveId, string documentId)
         {
             try
             {
@@ -754,9 +913,17 @@ namespace Coginov.GraphApi.Library.Services
         }
 
         /// <summary>
-        /// Move a document to a different location in another drive.
+        /// Moves a document from one location to another within SharePoint Online.
         /// https://stackoverflow.com/questions/66478737/invalidrequest-moving-driveitem-between-drives
         /// </summary>
+        /// <param name="driveId">The unique identifier of the drive (document library) where the document is currently located.</param>
+        /// <param name="documentId">The unique identifier of the document to move.</param>
+        /// <param name="destSite">The URL of the destination SharePoint site.</param>
+        /// <param name="destDocLib">The name of the destination document library within the destination site.</param>
+        /// <param name="destFolderId">Optional. The unique identifier of the destination folder within the destination document library. If not provided, <paramref name="destFolder"/> is used.</param>
+        /// <param name="destFolder">Optional. The path to the destination folder within the destination document library (e.g., "Subfolder/AnotherFolder"). If not provided, the document will be moved to the root of the destination library.</param>
+        /// <param name="docNewName">Optional. The new name for the document after it has been moved. If not provided, the original name is retained.</param>
+        /// <returns><c>true</c> if the document was moved successfully; otherwise, <c>false</c>.</returns>
         public async Task<bool> MoveDocument(string driveId, string documentId, string destSite, string destDocLib, string destFolderId = null, string destFolder = null, string docNewName = null)
         {
             try
@@ -1088,7 +1255,15 @@ namespace Coginov.GraphApi.Library.Services
 
         #region Exchange Online methods
 
-        public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
+        /// <summary>
+        /// Downloads the content of an email message and saves it to the local file system.
+        /// </summary>
+        /// <param name="message">The <see cref="Message"/> object representing the email to save.</param>
+        /// <param name="downloadLocation">The local directory where the email should be saved.</param>
+        /// <param name="userAccount">The user's email address or principal name.</param>
+        /// <param name="fileName">The name to use for the saved email file.</param>
+        /// <returns>A boolean value indicating whether the email was successfully saved.</returns>
+        public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
         {
             // The current limit for email size in Office 365 is 15O MB. Tested with a big email and working as expected
             try
@@ -1116,7 +1291,12 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
-        public async Task<int?> GetInboxMessageCount(string userAccount)
+        /// <summary>
+        /// Retrieves the number of messages in a user's inbox.
+        /// </summary>
+        /// <param name="userAccount">The user's email address or principal name.</param>
+        /// <returns>The number of messages in the inbox, or null if an error occurs.</returns>
+        public async Task<int?> GetInboxMessageCount(string userAccount)
         {
             try
             {
@@ -1131,19 +1311,60 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false)
+        /// <summary>
+        /// Retrieves emails from a user's inbox that were created after a specified date.
+        /// This method was implemented initially for QoreAudit, but it could be used by any application
+        /// </summary>
+        /// <param name="userAccount">The user's email address.</param>
+        /// <param name="afterDate">The date and time to filter emails after.</param>
+        /// <param name="skipIndex">The number of emails to skip in the result set (for pagination).</param>
+        /// <param name="emailCount">The maximum number of emails to retrieve in a single request.</param>
+        /// <param name="includeAttachments">A boolean value indicating whether to include attachments in the retrieved emails.</param>
+        /// <param name="preferText">A boolean value indicating whether to prefer the text body over HTML if available.</param>
+        /// <param name="filterOperator">
+        /// The operator to use when filtering by date ("gt" for greater than, "ge" for greater than or equal to). Default is "gt". 
+        /// When using "ge" to include messages with the same timestamp the the caller needs to de-duplicate and remove emails already processed
+        /// </param>
+        /// <returns>A <see cref="MessageCollectionResponse"/> containing the retrieved emails, or null if an error occurs.</returns>
+        public async Task<MessageCollectionResponse> GetEmailsAfterDate(
+            string userAccount, 
+            DateTime afterDate, 
+            int skipIndex = 0, 
+            int emailCount = 10, 
+            bool includeAttachments = false,
+            bool preferText = false,
+            string filterOperator = "gt")
         {
-            var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
+            filterOperator = filterOperator.Trim();
+            if (string.IsNullOrEmpty(filterOperator))
+            {
+                // If no operator is received then we default to gt
+                filterOperator = "gt";
+            }
+
+            // IMPORTANT: We need to create the filter this way to avoid UTC issues:
+            // $"createdDateTime ge {afterDate.ToString("s")}Z";
+            var filter = $"createdDateTime {filterOperator} {afterDate.ToString("s")}Z";
 
             try
             {
                 return await graphServiceClient.Users[userAccount].Messages
                     .GetAsync(requestConfiguration =>
                     {
+                        if (preferText)
+                        {
+                            requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
+                        }
+
                         requestConfiguration.QueryParameters.Filter = filter;
                         requestConfiguration.QueryParameters.Skip = skipIndex;
                         requestConfiguration.QueryParameters.Top = emailCount;
-                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
+                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime asc" };
+
+                        // Select only the fields you need (recommended for performance)
+                        requestConfiguration.QueryParameters.Select = GraphHelper.SelectedEmailFields;
+
+                        // Include attachments only when needed
                         requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
                     });
             }
@@ -1155,31 +1376,63 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(
+        /// <summary>
+        /// Retrieves emails from a specific folder in a user's mailbox that were created after a specified date.
+        /// This method was implemented initially for QoreMail / Siemens, but it could be used by any application
+        /// </summary>
+        /// <param name="userAccount">The user's email address.</param>
+        /// <param name="folder">The name of the mail folder to retrieve emails from.</param>
+        /// <param name="afterDate">The date and time to filter emails after.</param>
+        /// <param name="skipIndex">The number of emails to skip in the result set (for pagination).</param>
+        /// <param name="emailCount">The maximum number of emails to retrieve in a single request.</param>
+        /// <param name="includeAttachments">A boolean value indicating whether to include attachments in the retrieved emails.</param>
+        /// <param name="preferText">A boolean value indicating whether to prefer the text body over HTML if available.</param>
+        /// <param name="filterOperator">
+        /// The operator to use when filtering by date ("gt" for greater than, "ge" for greater than or equal to). Default is "gt". 
+        /// When using "ge" to include messages with the same timestamp the the caller needs to de-duplicate and remove emails already processed
+        /// </param>
+        /// <returns>A <see cref="MessageCollectionResponse"/> containing the retrieved emails, or null if an error occurs.</returns>
+        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(
             string userAccount, 
             string folder, 
             DateTime afterDate, 
             int skipIndex = 0, 
             int emailCount = 10, 
             bool includeAttachments = false, 
-            bool preferText = false)
+            bool preferText = false,
+            string filterOperator = "gt")
         {
-            var filter = $"createdDateTime gt {afterDate.ToString("s")}Z";
+            filterOperator = filterOperator.Trim();
+            if (string.IsNullOrEmpty(filterOperator))
+            {
+                // If no operator is received then we default to gt
+                filterOperator = "gt";
+            }
+
+            // IMPORTANT: We need to create the filter this way to avoid UTC issues:
+            // $"createdDateTime ge {afterDate.ToString("s")}Z";
+            var filter = $"createdDateTime {filterOperator} {afterDate.ToString("s")}Z";
 
             try
             {
                 var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
-
                 return await  graphRequest
                     .GetAsync(requestConfiguration =>
                     {
                         if (preferText)
+                        {
                             requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
+                        }
 
                         requestConfiguration.QueryParameters.Filter = filter;
                         requestConfiguration.QueryParameters.Skip = skipIndex;
                         requestConfiguration.QueryParameters.Top = emailCount;
-                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime" };
+                        requestConfiguration.QueryParameters.Orderby = new string[] { "createdDateTime asc" };
+
+                        // Select only the fields you need (recommended for performance)
+                        requestConfiguration.QueryParameters.Select = GraphHelper.SelectedEmailFields;
+
+                        // Include attachments only when needed
                         requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
                     });
             }
@@ -1191,38 +1444,50 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
-        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(
+        /// <summary>
+        /// Retrieves a page of emails from a user's inbox that were created on or after a specified date.
+        /// This method is optimized for pagination and avoids UTC conversion issues.
+        /// The caller is responsible for de-duplicating and removing already processed emails.
+        /// This method was implemented initially for QoreMail.Core, but it could be used by any application
+        /// </summary>
+        /// <param name="userAccount">The user's email address.</param>
+        /// <param name="afterDate">The date and time to filter emails on or after.</param>
+        /// <param name="pageSize">The maximum number of emails to retrieve in a single page.</param>
+        /// <param name="includeAttachments">A boolean value indicating whether to include attachments in the retrieved emails.</param>
+        /// <param name="preferText">A boolean value indicating whether to prefer the text body over HTML if available.</param>
+        /// <param name="filterOperator">
+        /// The operator to use when filtering by date ("gt" for greater than, "ge" for greater than or equal to). Default is "gt". 
+        /// When using "ge" to include messages with the same timestamp the the caller needs to de-duplicate and remove emails already processed
+        /// </param>
+        /// <returns>A <see cref="MessageCollectionResponse"/> containing the retrieved emails, or null if an error occurs.</returns>
+        public async Task<MessageCollectionResponse> GetEmailsAfterDate(
             string userAccount,
-            string folder,
             DateTime afterDate,
             int pageSize = 10,
             bool includeAttachments = false,
-            bool preferText = false)
+            bool preferText = false,
+            string filterOperator = "ge")
         {
-            // WARNING: DO NOT CONVERT afterDate to universal time like next line
-            // This was the reason why this function was not finding emails in an
-            // specific date after processing the first batch:
-            // var filter = $"createdDateTime ge {afterDate.ToUniversalTime():s}Z"; 
+            filterOperator = filterOperator.Trim();
+            if (string.IsNullOrEmpty(filterOperator))
+            {
+                // If no operator is received then we default to ge
+                filterOperator = "ge";
+            }
 
             // IMPORTANT: We need to create the filter this way to avoid UTC issues:
             // $"createdDateTime ge {afterDate.ToString("s")}Z";
-            // Using "ge" instead of "gt" to include messages with the same timestamp
-            // The the caller needs to de-duplicate and remove emails already processed
-            var filter = $"createdDateTime ge {afterDate.ToString("s")}Z";
+            var filter = $"createdDateTime {filterOperator} {afterDate.ToString("s")}Z";
 
             try
             {
-                var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
-
-                return await graphRequest.GetAsync(requestConfiguration =>
+                return await graphServiceClient.Users[userAccount].Messages
+                    .GetAsync(requestConfiguration =>
                 {
-                    var preferHeader = "outlook.timezone=\"UTC\"";
                     if (preferText)
                     {
-                        preferHeader += ", outlook.body-content-type=\"text\"";
+                        requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
                     }
-
-                    requestConfiguration.Headers.Add("Prefer", preferHeader);
 
                     requestConfiguration.QueryParameters.Filter = filter;
                     requestConfiguration.QueryParameters.Top = pageSize;
@@ -1231,10 +1496,8 @@ namespace Coginov.GraphApi.Library.Services
                     // Select only the fields you need (recommended for performance)
                     requestConfiguration.QueryParameters.Select = GraphHelper.SelectedEmailFields;
 
-                    if (includeAttachments)
-                    {
-                        requestConfiguration.QueryParameters.Expand = new[] { "attachments" };
-                    }
+                    // Include attachments only when needed
+                    requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
                 });
             }
             catch (Exception ex)
@@ -1244,7 +1507,77 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        public async Task<MessageCollectionResponse> GetEmailsFromNextLink(string nextLink)
+        /// <summary>
+        /// Retrieves a page of emails from a specific folder in a user's mailbox that were created on or after a specified date.
+        /// This method is optimized for pagination and avoids UTC conversion issues.
+        /// The caller is responsible for de-duplicating and removing already processed emails.
+        /// </summary>
+        /// <param name="userAccount">The user's email address.</param>
+        /// <param name="folder">The name of the mail folder to retrieve emails from.</param>
+        /// <param name="afterDate">The date and time to filter emails on or after.</param>
+        /// <param name="pageSize">The maximum number of emails to retrieve in a single page.</param>
+        /// <param name="includeAttachments">A boolean value indicating whether to include attachments in the retrieved emails.</param>
+        /// <param name="preferText">A boolean value indicating whether to prefer the text body over HTML if available.</param>
+        /// <param name="filterOperator">
+        /// The operator to use when filtering by date ("gt" for greater than, "ge" for greater than or equal to). Default is "gt". 
+        /// When using "ge" to include messages with the same timestamp the the caller needs to de-duplicate and remove emails already processed
+        /// </param>
+        /// <returns>A <see cref="MessageCollectionResponse"/> containing the retrieved emails, or null if an error occurs.</returns>
+        public async Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(
+            string userAccount,
+            string folder,
+            DateTime afterDate,
+            int pageSize = 10,
+            bool includeAttachments = false,
+            bool preferText = false,
+            string filterOperator = "ge")
+        {
+            filterOperator = filterOperator.Trim();
+            if (string.IsNullOrEmpty(filterOperator))
+            {
+                // If no operator is passed we default to ge
+                filterOperator = "ge";
+            }
+
+            // IMPORTANT: We need to create the filter this way to avoid UTC issues:
+            // $"createdDateTime ge {afterDate.ToString("s")}Z";
+            var filter = $"createdDateTime {filterOperator} {afterDate.ToString("s")}Z";
+
+            try
+            {
+                var graphRequest = graphServiceClient.Users[userAccount].MailFolders[folder].Messages;
+
+                return await graphRequest.GetAsync(requestConfiguration =>
+                {
+                    if (preferText)
+                    {
+                        requestConfiguration.Headers.Add("Prefer", "outlook.body-content-type=\"text\"");
+                    }
+
+                    requestConfiguration.QueryParameters.Filter = filter;
+                    requestConfiguration.QueryParameters.Top = pageSize;
+                    requestConfiguration.QueryParameters.Orderby = new[] { "createdDateTime asc" };
+
+                    // Select only the fields you need (recommended for performance)
+                    requestConfiguration.QueryParameters.Select = GraphHelper.SelectedEmailFields;
+
+                    // Include attachments only when needed
+                    requestConfiguration.QueryParameters.Expand = new string[] { includeAttachments ? "attachments" : "" };
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Retrieves the next page of emails using the provided next link from a previous response.
+        /// </summary>
+        /// <param name="nextLink">The URL to the next page of emails.</param>
+        /// <returns>A <see cref="MessageCollectionResponse"/> containing the next page of emails, or null if an error occurs.</returns>
+        public async Task<MessageCollectionResponse> GetEmailsFromNextLink(string nextLink)
         {
             try
             {
@@ -1264,6 +1597,11 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Retrieves a list of mail folders for a specified user account.
+        /// </summary>
+        /// <param name="userAccount">The user principal name (UPN) or object ID of the user.</param>
+        /// <returns>A list of <see cref="MailFolder"/> objects, or null if an error occurs.</returns>
         public async Task<List<MailFolder>> GetEmailFolders(string userAccount)
         {
             try
@@ -1282,7 +1620,6 @@ namespace Coginov.GraphApi.Library.Services
                 });
 
                 await pageIterator.IterateAsync();
-
                 return folderList;
             }
             catch (Exception ex)
@@ -1293,6 +1630,12 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        /// <summary>
+        /// Retrieves a specific mail folder by its ID for a given user account.
+        /// </summary>
+        /// <param name="userAccount">The user principal name (UPN) or object ID of the user.</param>
+        /// <param name="folderId">The unique identifier of the mail folder.</param>
+        /// <returns>A <see cref="MailFolder"/> object if found, or null if an error occurs.</returns>
         public async Task<MailFolder> GetEmailFolderById(string userAccount, string folderId)
         {
             try
@@ -1307,6 +1650,13 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        /// <summary>
+        /// Forwards a specific email message to another recipient.
+        /// </summary>
+        /// <param name="userAccount">The user principal name (UPN) or object ID of the user who owns the email.</param>
+        /// <param name="emailId">The unique identifier of the email message to forward.</param>
+        /// <param name="forwardAccount">The email address of the recipient to forward the email to.</param>
+        /// <returns><c>true</c> if the email was forwarded successfully; otherwise, <c>false</c>.</returns>
         public async Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount)
         {
             var requestBody = new Microsoft.Graph.Users.Item.Messages.Item.Forward.ForwardPostRequestBody
@@ -1339,6 +1689,15 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        /// <summary>
+        /// Sends an email message from a specified user account.
+        /// </summary>
+        /// <param name="fromAccount">The user principal name (UPN) or object ID of the user sending the email.</param>
+        /// <param name="toAccounts">A comma-separated string of email addresses of the recipients.</param>
+        /// <param name="subject">The subject line of the email message.</param>
+        /// <param name="body">The content of the email message.</param>
+        /// <param name="attachments">An optional list of attachments to include in the email.</param>
+        /// <returns><c>true</c> if the email was sent successfully; otherwise, <c>false</c>.</returns>
         public async Task<bool> SendEmail(string fromAccount, string toAccounts, string subject, string body, List<Attachment> attachments = null)
         {
             var attachmentsCollection = new List<Attachment>();
@@ -1375,6 +1734,15 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        /// <summary>
+        /// Sends an email message from a specified user account.
+        /// </summary>
+        /// <param name="fromAccount">The user principal name (UPN) or object ID of the user sending the email.</param>
+        /// <param name="toAccounts">A comma-separated string of email addresses of the recipients.</param>
+        /// <param name="subject">The subject line of the email message.</param>
+        /// <param name="body">The content of the email message.</param>
+        /// <param name="attachments">An optional list of attachments to include in the email.</param>
+        /// <returns><c>true</c> if the email was sent successfully; otherwise, <c>false</c>.</returns>
         public async Task<bool> MoveEmailToFolder(string userAccount, string emailId, string newFolder)
         {
             try
@@ -1406,7 +1774,7 @@ namespace Coginov.GraphApi.Library.Services
         /// </summary>
         /// <param name="userAccount">Account(email address) containing the email to be deleted</param>
         /// <param name="emailId">Id of the email to be deleted</param>
-        /// <returns></returns>
+        /// <returns><c>true</c> if the email was removed successfully; otherwise, <c>false</c>.</returns>
         public async Task<bool> RemoveEmail(string userAccount, string emailId)
         {
             try
@@ -1422,6 +1790,11 @@ namespace Coginov.GraphApi.Library.Services
             return false;
         }
 
+        /// <summary>
+        /// Retrieves a list of Azure Active Directory group names that the user, associated with the provided access token, is a member of.
+        /// </summary>
+        /// <param name="azureAccessToken">The Azure AD access token used for authentication.</param>
+        /// <returns>A list of strings representing the names of the Azure AD groups the user belongs to. Returns an empty list if the user is not a member of any Azure AD groups or if an error occurs.</returns>
         public async Task<List<string>> GetAzureAdGroupsFromAccessToken(string azureAccessToken)
         {
             var groups = new List<string>();
@@ -1462,6 +1835,13 @@ namespace Coginov.GraphApi.Library.Services
         #endregion
 
         #region Private Methods
+
+        /// <summary>
+        /// Retrieves a list of drives (document libraries) for a specified SharePoint site.
+        /// </summary>
+        /// <param name="siteId">The unique identifier of the SharePoint site.</param>
+        /// <param name="excludeSystemDrives">Optional. A boolean value indicating whether to exclude system drives. Defaults to <c>false</c>.</param>
+        /// <returns>A list of <see cref="Drive"/> objects associated with the site, or null if the site is not found or an error occurs.</returns>
         private async Task<List<Drive>> GetSiteDrives(string siteId, bool excludeSystemDrives = false)
         {
             if (authConfig.AuthenticationMethod != AuthMethod.OAuthAppPermissions)
@@ -1475,6 +1855,12 @@ namespace Coginov.GraphApi.Library.Services
             return siteDocs.FirstOrDefault().Value;
         }
 
+        /// <summary>
+        /// Saves the content of a Microsoft Graph <see cref="DriveItem"/> to a file on the local file system.
+        /// </summary>
+        /// <param name="document">The <see cref="DriveItem"/> object representing the file to save.</param>
+        /// <param name="filePath">The desired file path (without timestamp) on the local file system where the file will be saved. A timestamp will be appended to the filename to ensure uniqueness.</param>
+        /// <returns>The original <see cref="DriveItem"/> object if the save operation was successful; otherwise, <c>null</c>.</returns>
         private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath)
         {
             try
@@ -1523,6 +1909,12 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        /// <summary>
+        /// Retrieves a dictionary of document libraries (drives) for a list of SharePoint sites.
+        /// </summary>
+        /// <param name="sites">A list of <see cref="Site"/> objects to retrieve document libraries for.</param>
+        /// <param name="excludeSystemDocLibs">Optional. A boolean value indicating whether to exclude system document libraries. Defaults to <c>false</c>.</param>
+        /// <returns>A dictionary where the key is the site's web URL and the value is a list of <see cref="Drive"/> objects (document libraries) for that site. Returns null if the input list of sites is null or empty, or if an error occurs.</returns>
         private async Task<Dictionary<string,List<Drive>>> GetSiteAndDocLibsDictionary(List<Site> sites, bool excludeSystemDocLibs = false)
         {
             if (sites == null || !sites.Any()) { return null; }
@@ -1586,6 +1978,11 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Retrieves the root <see cref="Drive"/> object based on the connection type and drive ID.
+        /// </summary>
+        /// <param name="driveId">The unique identifier of the drive.</param>
+        /// <returns>The root <see cref="Drive"/> object, or null if the connection type is invalid or an error occurs.</returns>
         private async Task<Drive> GetDriveRoot(string driveId)
         {
             switch(connectionType)
@@ -1602,6 +1999,10 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Initializes the Microsoft Graph service client for application permissions using either a client secret or a certificate.
+        /// </summary>
+        /// <returns><c>true</c> if the initialization was successful; otherwise, <c>false</c>.</returns>
         private async Task<bool> InitializeAppPermissions()
         {
             string[] scopes = new string[] { $"{authConfig.ApiUrl}.default" };
@@ -1660,6 +2061,10 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
+        /// <summary>
+        /// Initializes the Microsoft Graph service client for delegated permissions using interactive browser authentication.
+        /// </summary>
+        /// <returns><c>true</c> if the initialization was successful; otherwise, <c>false</c>.</returns>
         private async Task<bool> InitializeDelegatedPermissions()
         {
             try
@@ -1699,9 +2104,15 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
-        // We can use ChaosHandler to simulate server failures
-        // https://learn.microsoft.com/en-us/graph/sdks/customize-client?tabs=csharp
-        // https://camerondwyer.com/2021/09/23/how-to-use-the-microsoft-graph-sdk-chaos-handler-to-simulate-graph-api-errors/
+        /// <summary>
+        /// Initializes the Microsoft Graph service client with a Chaos Handler for simulating random server failures.
+        /// We can use ChaosHandler to simulate server failures
+        /// https://learn.microsoft.com/en-us/graph/sdks/customize-client?tabs=csharp
+        /// https://camerondwyer.com/2021/09/23/how-to-use-the-microsoft-graph-sdk-chaos-handler-to-simulate-graph-api-errors/
+        /// </summary>
+        /// <param name="credential">The <see cref="TokenCredential"/> to use for authentication.</param>
+        /// <param name="scopes">An array of permission scopes required for the application.</param>
+        /// <returns><c>true</c> if the initialization was successful; otherwise, <c>false</c>.</returns>
         private bool InitializeWithChaosHandler(TokenCredential credential, string[] scopes)
         {
             try
@@ -1733,6 +2144,10 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Initializes the Microsoft Graph service client using an access token stored in a file.
+        /// </summary>
+        /// <returns><c>true</c> if the initialization was successful; otherwise, <c>false</c>.</returns>
         private async Task<bool> InitializeUsingAccessToken()
         {
             authenticationToken = InitializeFromTokenPath();
@@ -1753,6 +2168,11 @@ namespace Coginov.GraphApi.Library.Services
             return true;
         }
 
+        /// <summary>
+        /// Checks if the Microsoft Graph service client is initialized. If not, it attempts to initialize it based on the configured authentication method.
+        /// </summary>
+        /// <param name="forceInit">Optional. A boolean value indicating whether to force re-initialization even if the client is already initialized. Defaults to <c>false</c>.</param>
+        /// <returns><c>true</c> if the client is initialized or successfully initialized; otherwise, <c>false</c>.</returns>
         private async Task<bool> IsInitialized(bool forceInit = false)
         {
             if (!forceInit && graphServiceClient != null)
@@ -1781,6 +2201,9 @@ namespace Coginov.GraphApi.Library.Services
             return connected;
         }
 
+        /// <summary>
+        /// Initializes the HttpClient used for Microsoft Graph API calls, potentially adding a Chaos Handler for simulating random failures.
+        /// </summary>
         private void InitGraphHttpClient()
         {
             if (graphHttpClient != null)
@@ -1805,6 +2228,11 @@ namespace Coginov.GraphApi.Library.Services
             graphHttpClient.Timeout = TimeSpan.FromHours(3);
         }
 
+        /// <summary>
+        /// Determines whether to use a client secret or a certificate for application authentication based on the configuration.
+        /// </summary>
+        /// <returns><c>true</c> if a client secret is configured; <c>false</c> if a certificate is configured.</returns>
+        /// <exception cref="Exception">Thrown if neither a client secret nor a certificate name is configured.</exception>
         private bool UseClientSecret()
         {
             if (!string.IsNullOrWhiteSpace(authConfig.ClientSecret))
@@ -1815,6 +2243,10 @@ namespace Coginov.GraphApi.Library.Services
                 throw new Exception(Resource.ChooseClientOrCertificate);
         }
 
+        /// <summary>
+        /// Initializes an <see cref="AuthenticationToken"/> object by reading and potentially decrypting a token from a configured file path.
+        /// </summary>
+        /// <returns>An <see cref="AuthenticationToken"/> object if the token is successfully read and processed; otherwise, <c>null</c>.</returns>
         private AuthenticationToken InitializeFromTokenPath()
         {
             if (!SystemFile.Exists(authConfig.TokenPath)) 
@@ -1859,6 +2291,11 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Deserializes a JSON string into an <see cref="AuthenticationToken"/> object.
+        /// </summary>
+        /// <param name="token">The JSON string representing the authentication token.</param>
+        /// <returns>An <see cref="AuthenticationToken"/> object if deserialization is successful; otherwise, <c>null</c>.</returns>
         private static AuthenticationToken GetTokenFromString(string token)
         {
             try
@@ -1872,6 +2309,11 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
+        /// <summary>
+        /// Retrieves connection information for a SharePoint drive, either from a cached list or by querying the Microsoft Graph API.
+        /// </summary>
+        /// <param name="driveId">The unique identifier of the SharePoint drive.</param>
+        /// <returns>A <see cref="DriveConnectionInfo"/> object containing information about the drive, or null if the drive is not found or an error occurs.</returns>
         private async Task<DriveConnectionInfo> GetSharePointDriveConnectionInfo(string driveId)
         {
             var driveInfo = drivesConnectionInfo?.FirstOrDefault(x => x.Id == driveId);
