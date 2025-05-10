@@ -24,13 +24,18 @@ namespace Coginov.GraphApi.Library.Services
 
         // Methods used by QoreAudit and QoreMail
         Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false);
-        Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false);
-        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false);
 
-        // The following two methods has been implemented to correct pagination issues found on revious method. The use of skipIndex is not recommended
+        Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
+        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
+
+        // The following two methods has been implemented for a more robust and modern pagination:
+        // - GetEmailsAfterDate: used on the first call and then we should call method GetEmailsFromNextLink with OdataNextLink
         // - GetEmailsFromFolderAfterDate: used on the first call and then we call the following method with OdataNextLink 
-        // - GetEmailsFromNextLink: with OdataNextLink we make sure pagination works correctly
-        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int emailCount = 10, bool includeAttachments = false, bool preferText = false);
+        // - GetEmailsFromNextLink: used after first call made with previous methods. It expects OdataNextLink retrieved by first
+        // call using previous methods. This way we don't manipulate Query String parameters and avoid potential issues if Query
+        // String Params are changed in future versions of Graph API
+        Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int pageSize = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
+        Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int pageSize = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
         Task<MessageCollectionResponse> GetEmailsFromNextLink(string nextLink);
 
         Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName);
