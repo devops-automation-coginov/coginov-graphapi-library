@@ -907,9 +907,8 @@ namespace Coginov.GraphApi.Library.Services
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                throw;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -969,17 +968,23 @@ namespace Coginov.GraphApi.Library.Services
                 if (docNewName != null)
                     requestBody.Name = docNewName;
 
+                // TODO: We need to confirm if the Copy operation succeeded. The only way to validate
+                // that is if we call another api and find the file in the destination. If not found
+                // do not delete it from the source location
                 await graphServiceClient.Drives[driveId].Items[documentId].Copy.PostAsync(requestBody);
-
+                
+                // TODO: Before we delete the item we need to confirm if the Copy operation succeeded.
+                // We need to implement that verification before deleting the item from soruce location
                 await graphServiceClient.Drives[driveId].Items[documentId].DeleteAsync();
+
+                // TODO: Return true only if previous steps were successfull: Copy and Delete
                 return true;
             }
             catch (Exception ex)
             {
                 logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                throw;
             }
-
-            return false;
         }
 
         /// <summary>
