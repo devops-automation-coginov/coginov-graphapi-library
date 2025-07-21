@@ -457,6 +457,51 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Initializing Exchange Connection.
+        /// </summary>
+        internal static string InitializingExchangeConnection {
+            get {
+                return ResourceManager.GetString("InitializingExchangeConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Initializing GraphApi.
+        /// </summary>
+        internal static string InitializingGraphApi {
+            get {
+                return ResourceManager.GetString("InitializingGraphApi", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Initializing MsTeams Connection.
+        /// </summary>
+        internal static string InitializingMsTeamsConnection {
+            get {
+                return ResourceManager.GetString("InitializingMsTeamsConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Initializing OneDrive Connection.
+        /// </summary>
+        internal static string InitializingOneDriveConnection {
+            get {
+                return ResourceManager.GetString("InitializingOneDriveConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Initializing SharePointOnline Connection.
+        /// </summary>
+        internal static string InitializingSharePointOnlineConnection {
+            get {
+                return ResourceManager.GetString("InitializingSharePointOnlineConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid search parameters provided.
         /// </summary>
         internal static string InvalidSearchParameters {

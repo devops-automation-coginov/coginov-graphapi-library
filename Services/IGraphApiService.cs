@@ -17,13 +17,16 @@ namespace Coginov.GraphApi.Library.Services
         Task<List<DriveConnectionInfo>> GetOneDriveDrives();
         Task<List<DriveConnectionInfo>> GetMsTeamDrives();
         Task<DriveItemSearchResult> GetDocumentIds(string driveId, DateTime lastDate, int top, string skipToken);
-        Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation);
+        Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation, bool useTimeStamp = false);
         Task<DriveItem> GetDriveItemMetadata(string driveId, string documentId);
         Task<Dictionary<string, List<string>>> GetSharepointSitesAndDocLibs(bool excludePersonalSites = false, bool excludeSystemDocLibs = false);
         Task<List<string>> GetAzureAdGroupsFromAccessToken(string azureAccessToken);
+        Task<DriveConnectionInfo> GetSharePointDriveConnectionInfo(string driveId);
 
         // Methods used by QoreAudit and QoreMail
         Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false);
+        Task<Drive> GetDriveRoot(string driveId);
+        Task<DriveItem> GetDriveItem(string driveId, string documentId);
 
         Task<MessageCollectionResponse> GetEmailsAfterDate(string userAccount, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
         Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int skipIndex = 0, int emailCount = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
