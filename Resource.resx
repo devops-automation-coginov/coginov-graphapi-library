@@ -249,6 +249,21 @@
   <data name="GraphRetryAttempts" xml:space="preserve">
     <value>Retrying in {0} seconds. Attepmt: {1}</value>
   </data>
+  <data name="InitializingExchangeConnection" xml:space="preserve">
+    <value>Initializing Exchange Connection</value>
+  </data>
+  <data name="InitializingGraphApi" xml:space="preserve">
+    <value>Initializing GraphApi</value>
+  </data>
+  <data name="InitializingMsTeamsConnection" xml:space="preserve">
+    <value>Initializing MsTeams Connection</value>
+  </data>
+  <data name="InitializingOneDriveConnection" xml:space="preserve">
+    <value>Initializing OneDrive Connection</value>
+  </data>
+  <data name="InitializingSharePointOnlineConnection" xml:space="preserve">
+    <value>Initializing SharePointOnline Connection</value>
+  </data>
   <data name="InvalidSearchParameters" xml:space="preserve">
     <value>Invalid search parameters provided</value>
   </data>

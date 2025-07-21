@@ -1,9 +1,19 @@
-﻿using Azure.Identity;
+﻿using Azure.Core;
+using Azure.Identity;
 using Coginov.GraphApi.Library.Enums;
 using Coginov.GraphApi.Library.Helpers;
 using Coginov.GraphApi.Library.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using Microsoft.Graph.Drives.Item.Items.Item.Copy;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
+using Microsoft.Graph.Users.Item.SendMail;
+using Microsoft.Kiota.Abstractions;
+using Microsoft.Kiota.Abstractions.Authentication;
+using Microsoft.Kiota.Authentication.Azure;
+using Microsoft.Kiota.Http.HttpClientLibrary.Middleware;
+using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,26 +22,18 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
-using SystemFile = System.IO.File;
-using Microsoft.Graph.Models;
-using Microsoft.Graph.Users.Item.SendMail;
-using Microsoft.Kiota.Abstractions.Authentication;
-using Azure.Core;
-using Microsoft.Kiota.Http.HttpClientLibrary.Middleware;
 using System.Text.RegularExpressions;
-using Microsoft.Graph.Models.ODataErrors;
-using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
-using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
-using Microsoft.Kiota.Abstractions;
-using Microsoft.Kiota.Authentication.Azure;
-using Microsoft.Graph.Drives.Item.Items.Item.Copy;
 using System.Threading;
+using System.Threading.Tasks;
+using DriveUpload = Microsoft.Graph.Drives.Item.Items.Item.CreateUploadSession;
+using SystemFile = System.IO.File;
 
 namespace Coginov.GraphApi.Library.Services
 {
     public class GraphApiService : IGraphApiService
     {
+        private string className => nameof(GraphApiService);
+
         /// <summary>
         /// The logger instance used for logging messages within this service.
         /// </summary>
@@ -126,6 +128,7 @@ namespace Coginov.GraphApi.Library.Services
         /// <returns><c>true</c> if the initialization was successful; otherwise, <c>false</c>.</returns>
         public async Task<bool> InitializeGraphApi(AuthenticationConfig authenticationConfig, bool forceInit = true)
         {
+            logger.LogInformation(LogPrefix($"{Resource.InitializingGraphApi}"));
             this.authConfig = authenticationConfig;
             return await IsInitialized(forceInit);
         }
@@ -140,6 +143,8 @@ namespace Coginov.GraphApi.Library.Services
         /// <returns>A boolean value indicating whether the initialization was successful.</returns>
         public async Task<bool> InitializeSharePointOnlineConnection(AuthenticationConfig authenticationConfig, string siteUrl, string[] docLibraries, bool forceInit = false)
         {
+            logger.LogInformation(LogPrefix($"{Resource.InitializingSharePointOnlineConnection}"));
+
             this.authConfig = authenticationConfig;
             this.siteUrl = siteUrl; 
             this.docLibraries = docLibraries;
@@ -158,7 +163,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorInitializingSPConnection}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingSPConnection}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return false;
             }
 
@@ -174,6 +179,8 @@ namespace Coginov.GraphApi.Library.Services
         /// <returns>A boolean value indicating whether the initialization was successful.</returns>
         public async Task<bool> InitializeOneDriveConnection(AuthenticationConfig authenticationConfig, string userAccount, bool forceInit = false)
         {
+            logger.LogInformation(LogPrefix($"{Resource.InitializingOneDriveConnection}"));
+
             this.authConfig = authenticationConfig;
             this.oneDriveUserAccount = userAccount;
 
@@ -191,7 +198,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorInitializingODConnection}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingODConnection}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return false;
             }
 
@@ -207,6 +214,8 @@ namespace Coginov.GraphApi.Library.Services
         /// <returns>A boolean value indicating whether the initialization was successful.</returns>
         public async Task<bool> InitializeMsTeamsConnection(AuthenticationConfig authenticationConfig, string[]? teams, bool forceInit = false)
         {
+            logger.LogInformation(LogPrefix($"{Resource.InitializingMsTeamsConnection}"));
+
             this.authConfig = authenticationConfig;
             this.teams = teams;
 
@@ -220,7 +229,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorInitializingTeamsConnection}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingTeamsConnection}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return false;
             }
 
@@ -235,6 +244,8 @@ namespace Coginov.GraphApi.Library.Services
         /// <returns>A boolean value indicating whether the initialization was successful.</returns>
         public async Task<bool> InitializeExchangeConnection(AuthenticationConfig authenticationConfig, bool forceInit = false)
         {
+            logger.LogInformation(LogPrefix($"{Resource.InitializingExchangeConnection}"));
+
             authConfig = authenticationConfig;
             if (!await IsInitialized(forceInit))
                 return false;
@@ -268,7 +279,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch(Exception ex)
             {
-                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}");
+                logger.LogError(LogPrefix($"{Resource.CannotGetJwtToken}. {ex.Message}"));
                 return null;
             }
         }
@@ -317,12 +328,12 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (OperationCanceledException ex)
             {
-                logger.LogError($"{Resource.TimeOutGettingJwtToken}. {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.TimeOutGettingJwtToken}. {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.CannotGetJwtToken}. {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.CannotGetJwtToken}. {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
         }
@@ -341,7 +352,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingUserId}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingUserId}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -368,7 +379,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch(Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingSiteId}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingSiteId}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return null;
             }
         }
@@ -398,13 +409,13 @@ namespace Coginov.GraphApi.Library.Services
                     {
                         // Show error if provided Document Library name doesn't exist
                         if (siteDrives.FirstOrDefault(x => x.Name == library) == null)
-                            logger.LogError($"{Resource.LibraryNotFound}: {library}");
+                            logger.LogError(LogPrefix($"{Resource.LibraryNotFound}: {library}"));
                     }
                 }
 
                 if (!selectedDrives.Any())
                     // Show error if provided Document Libraries names don't exist
-                    logger.LogError($"{Resource.LibrariesNotFound}: {string.Join(",", docLibraries)}");
+                    logger.LogError(LogPrefix($"{Resource.LibrariesNotFound}: {string.Join(",", docLibraries)}"));
 
                 foreach (var drive in selectedDrives)
                 {
@@ -422,7 +433,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return drivesConnectionInfo;
@@ -455,7 +466,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDrives}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDrives}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return drivesConnectionInfo;
@@ -495,14 +506,14 @@ namespace Coginov.GraphApi.Library.Services
                     if (groups.Value.Count == 0)
                     {
                         // If no teams found log error
-                        logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", teams)}");
+                        logger.LogError(LogPrefix($"{Resource.ErrorRetrievingTeams}: {string.Join(",", teams)}"));
                     } 
                     else if (groups.Value.Count < teams.Count())
                     {
                         // If any of the teams was not found log error
                         var foundTeams = groups.Value.Select(x => x.DisplayName).ToList();
                         var notFoundTeams = teams.Where(x => !foundTeams.Contains(x));
-                        logger.LogError($"{Resource.ErrorRetrievingTeams}: {string.Join(",", notFoundTeams)}");
+                        logger.LogError(LogPrefix($"{Resource.ErrorRetrievingTeams}: {string.Join(",", notFoundTeams)}"));
                     }
                 }
 
@@ -515,7 +526,7 @@ namespace Coginov.GraphApi.Library.Services
                     }
                     catch
                     {
-                        logger.LogWarning($"{Resource.CannotAccessDrive}: {group.DisplayName}");
+                        logger.LogWarning(LogPrefix($"{Resource.CannotAccessDrive}: {group.DisplayName}"));
                         continue;
                     }
 
@@ -534,7 +545,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingTeams}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingTeams}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return drivesConnectionInfo;
@@ -618,12 +629,12 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}"));
                 if (ex.ResponseStatusCode == 403)
                 {
                     var drive = drivesConnectionInfo.FirstOrDefault(x => x.Id == driveId);
                     var errorMessage = $"{Resource.ErrorAccessDeniedToDrive}: '{drive?.Name}'. {ex.Message}. {ex.InnerException?.Message}";
-                    logger.LogError(errorMessage);
+                    logger.LogError(LogPrefix(errorMessage));
                     return new DriveItemSearchResult
                     {
                         DocumentIds = new List<DriveItem>(),
@@ -633,7 +644,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch(Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocumentIds}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -656,7 +667,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -669,7 +680,7 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="documentId">The ID of the item to download.</param>
         /// <param name="downloadLocation">The local path where the file should be saved.</param>
         /// <returns>A <see cref="DriveItem"/> object representing the item's metadata with added local file path, or null if an error occurs.</returns>
-        public async Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation)
+        public async Task<DriveItem> SaveDriveItemToFileSystem(string driveId, string documentId, string downloadLocation, bool useTimeStamp = false)
         {
             try
             {
@@ -680,7 +691,13 @@ namespace Coginov.GraphApi.Library.Services
                 var drive = await GetSharePointDriveConnectionInfo(driveId);
                 var documentPath = document.ParentReference.Path.Replace($"/drives/{driveId}/root:", string.Empty).TrimStart('/').Replace(@"/", @"\");
 
-                string filePath = Path.Combine(downloadLocation, drive.Root, drive.Name, documentPath, document.Name).GetFilePathWithTimestamp();
+                string filePath = Path.Combine(downloadLocation, drive.Root, drive.Name, documentPath, document.Name);
+                
+                // Append timestamp to the file name to avoid conflicts
+                if (useTimeStamp)
+                {
+                    filePath = filePath.GetFilePathWithTimestamp();
+                }
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
                 document.AdditionalData.Add("FilePath", filePath);
@@ -699,12 +716,12 @@ namespace Coginov.GraphApi.Library.Services
                 catch (Exception)
                 {
                     // We got an error while saving document content. Let's try in chuncks in case it is too big
-                    return await SaveDriveItemToFileSystem(document, filePath);
+                    return await SaveDriveItemToFileSystem(document, filePath, useTimeStamp);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -735,7 +752,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorGettingDriveItemMetadata}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorGettingDriveItemMetadata}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -788,7 +805,7 @@ namespace Coginov.GraphApi.Library.Services
                 // Create a callback that is invoked after each slice is uploaded
                 IProgress<long> progress = new Progress<long>(prog =>
                 {
-                    logger.LogInformation(string.Format(Resource.DriveItemUploadProgress, prog, totalLength));
+                    logger.LogInformation(LogPrefix(string.Format(Resource.DriveItemUploadProgress, prog, totalLength)));
                 });
 
                 // Upload the file
@@ -796,11 +813,11 @@ namespace Coginov.GraphApi.Library.Services
 
                 if (uploadResult.UploadSucceeded)
                 {
-                    logger.LogInformation($"{Resource.DriveItemUploadComplete}: {uploadResult.ItemResponse.Id}");
+                    logger.LogInformation(LogPrefix($"{Resource.DriveItemUploadComplete}: {uploadResult.ItemResponse.Id}"));
                 }
                 else
                 {
-                    logger.LogError(Resource.DriveItemUploadFailed);
+                    logger.LogError(LogPrefix(Resource.DriveItemUploadFailed));
                     return false;
                 }
 
@@ -808,9 +825,8 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.DriveItemUploadFailed}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.DriveItemUploadFailed}: {ex.Message}. {ex.InnerException?.Message}"));
             }
-
 
             return false;
         }
@@ -831,7 +847,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -857,7 +873,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorDeletingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -883,7 +899,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     if (folder == null)
                     {
-                        logger.LogError(Resource.DestinationFolderNotFound);
+                        logger.LogError(LogPrefix(Resource.DestinationFolderNotFound));
                         return false;
                     }
 
@@ -906,7 +922,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
                 throw;
             }
         }
@@ -943,7 +959,7 @@ namespace Coginov.GraphApi.Library.Services
 
                     if (folder == null)
                     {
-                        logger.LogError(Resource.DestinationFolderNotFound);
+                        logger.LogError(LogPrefix(Resource.DestinationFolderNotFound));
                         return false;
                     }
 
@@ -982,7 +998,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorMovingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
                 throw;
             }
         }
@@ -1056,7 +1072,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingSpoSites}: {ex.Message}. {ex.InnerException?.Message}"));
             }
             return null;
         }
@@ -1076,7 +1092,7 @@ namespace Coginov.GraphApi.Library.Services
             {
                 if (string.IsNullOrWhiteSpace(searchField) || string.IsNullOrWhiteSpace(searchValue))
                 {
-                    logger.LogError(Resource.InvalidSearchParameters);
+                    logger.LogError(LogPrefix(Resource.InvalidSearchParameters));
                     return null;
                 }
             }
@@ -1120,7 +1136,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorSearchingFolders}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1136,7 +1152,7 @@ namespace Coginov.GraphApi.Library.Services
         {
             if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
             {
-                logger.LogError(Resource.InvalidUpdateParameters);
+                logger.LogError(LogPrefix(Resource.InvalidUpdateParameters));
                 return null;
             }
 
@@ -1167,7 +1183,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1183,7 +1199,7 @@ namespace Coginov.GraphApi.Library.Services
         {
             if (columnKeyValues.Any(x => string.IsNullOrEmpty(x.Key)))
             {
-                logger.LogError(Resource.ErrorUpdatingSharepointItems);
+                logger.LogError(LogPrefix(Resource.ErrorUpdatingSharepointItems));
                 return null;
             }
 
@@ -1207,7 +1223,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorUpdatingSharepointItems}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1223,7 +1239,7 @@ namespace Coginov.GraphApi.Library.Services
         {
             if (driveItem == null)
             {
-                logger.LogError("Invalid driveItem info");
+                logger.LogError(LogPrefix("Invalid driveItem info"));
                 return null;
             }
 
@@ -1252,7 +1268,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1286,11 +1302,11 @@ namespace Coginov.GraphApi.Library.Services
             catch (TaskCanceledException)
             {
                 // We got a timeout, ignore for now
-                logger.LogInformation($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next");
+                logger.LogInformation(LogPrefix($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next"));
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -1310,7 +1326,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessagesCount}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeMessagesCount}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1375,7 +1391,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1443,7 +1459,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1507,7 +1523,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
         }
@@ -1572,7 +1588,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeMessages}: {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
         }
@@ -1597,7 +1613,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeMessagesFromNextLink}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeMessagesFromNextLink}: {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
         }
@@ -1629,7 +1645,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocuments}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1649,7 +1665,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingExchangeFolders}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1688,7 +1704,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorForwardingEmail}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -1733,7 +1749,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorSendingEmail}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -1767,7 +1783,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorMovingEmail}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -1789,7 +1805,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRemovingEmail}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRemovingEmail}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return false;
@@ -1831,10 +1847,40 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingAzureAdGroups}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingAzureAdGroups}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return groups;
+        }
+
+        /// <summary>
+        /// Retrieves connection information for a SharePoint drive, either from a cached list or by querying the Microsoft Graph API.
+        /// </summary>
+        /// <param name="driveId">The unique identifier of the SharePoint drive.</param>
+        /// <returns>A <see cref="DriveConnectionInfo"/> object containing information about the drive, or null if the drive is not found or an error occurs.</returns>
+        public async Task<DriveConnectionInfo> GetSharePointDriveConnectionInfo(string driveId)
+        {
+            var driveInfo = drivesConnectionInfo?.FirstOrDefault(x => x.Id == driveId);
+            if (driveInfo != null)
+                return driveInfo;
+
+            var drive = await graphServiceClient.Drives[driveId].GetAsync();
+
+            driveInfo = new DriveConnectionInfo
+            {
+                Id = drive.Id,
+                Root = siteUrl.GetFolderNameFromSpoUrl(),
+                Path = drive.WebUrl,
+                Name = drive.Name,
+                DownloadCompleted = false
+            };
+
+            if (drivesConnectionInfo == null)
+                drivesConnectionInfo = new List<DriveConnectionInfo>();
+
+            drivesConnectionInfo.Add(driveInfo);
+
+            return driveInfo;
         }
 
         #endregion
@@ -1866,7 +1912,7 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="document">The <see cref="DriveItem"/> object representing the file to save.</param>
         /// <param name="filePath">The desired file path (without timestamp) on the local file system where the file will be saved. A timestamp will be appended to the filename to ensure uniqueness.</param>
         /// <returns>The original <see cref="DriveItem"/> object if the save operation was successful; otherwise, <c>null</c>.</returns>
-        private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath)
+        private async Task<DriveItem> SaveDriveItemToFileSystem(DriveItem document, string filePath, bool useTimeStamp = false)
         {
             try
             {
@@ -1874,7 +1920,13 @@ namespace Coginov.GraphApi.Library.Services
                 var documentSize = document.Size;
                 var readSize = ConstantHelper.DEFAULT_CHUNK_SIZE;
 
-                using (FileStream outputFileStream = new FileStream(filePath.GetFilePathWithTimestamp(), FileMode.Create))
+                // If useTimeStamp is true, we append a timestamp to the file name
+                if (useTimeStamp)
+                {
+                    filePath = filePath.GetFilePathWithTimestamp();
+                }
+
+                using (FileStream outputFileStream = new FileStream(filePath, FileMode.Create))
                 {
                     long offset = 0;
                     while (offset < documentSize)
@@ -1908,7 +1960,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorSavingDriveItem}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             return null;
@@ -1966,7 +2018,7 @@ namespace Coginov.GraphApi.Library.Services
                         }
                         catch(Exception ex)
                         {
-                            logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {item.Key.Name}. {ex.Message}. {ex.InnerException?.Message}");
+                            logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocLibraries}: {item.Key.Name}. {ex.Message}. {ex.InnerException?.Message}"));
                             continue;
                         }
                     }
@@ -1978,7 +2030,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch(Exception ex)
             {
-                logger.LogError($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorRetrievingDocLibraries}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return null;
             }
         }
@@ -1988,7 +2040,7 @@ namespace Coginov.GraphApi.Library.Services
         /// </summary>
         /// <param name="driveId">The unique identifier of the drive.</param>
         /// <returns>The root <see cref="Drive"/> object, or null if the connection type is invalid or an error occurs.</returns>
-        private async Task<Drive> GetDriveRoot(string driveId)
+        public async Task<Drive> GetDriveRoot(string driveId)
         {
             switch(connectionType)
             {
@@ -2054,12 +2106,12 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (ODataError ex) when (ex.Message.Contains("AADSTS70011"))
             {
-                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message}"));
                 return await Task.FromResult(false);
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message}"));
                 return await Task.FromResult(false);
             }
 
@@ -2102,7 +2154,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch(Exception ex)
             {
-                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return await Task.FromResult(false);
             }
 
@@ -2166,7 +2218,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message ?? ""}");
+                logger.LogError(LogPrefix($"{Resource.ErrorInitializingGraph}: {ex.Message}. {ex.InnerException?.Message ?? ""}"));
                 return await Task.FromResult(false);
             }
 
@@ -2267,7 +2319,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogError($"{Resource.CannotReadTokenFile}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogError(LogPrefix($"{Resource.CannotReadTokenFile}: {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
 
@@ -2278,7 +2330,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogWarning($"{Resource.TokenUnencrypted}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogWarning(LogPrefix($"{Resource.TokenUnencrypted}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
             try
@@ -2291,7 +2343,7 @@ namespace Coginov.GraphApi.Library.Services
             }
             catch (Exception ex)
             {
-                logger.LogWarning($"{Resource.CannotSaveToken}: {ex.Message}. {ex.InnerException?.Message}");
+                logger.LogWarning(LogPrefix($"{Resource.CannotSaveToken}: {ex.Message}. {ex.InnerException?.Message}"));
                 return null;
             }
         }
@@ -2314,36 +2366,10 @@ namespace Coginov.GraphApi.Library.Services
             }
         }
 
-        /// <summary>
-        /// Retrieves connection information for a SharePoint drive, either from a cached list or by querying the Microsoft Graph API.
-        /// </summary>
-        /// <param name="driveId">The unique identifier of the SharePoint drive.</param>
-        /// <returns>A <see cref="DriveConnectionInfo"/> object containing information about the drive, or null if the drive is not found or an error occurs.</returns>
-        private async Task<DriveConnectionInfo> GetSharePointDriveConnectionInfo(string driveId)
+        public string LogPrefix(string msg)
         {
-            var driveInfo = drivesConnectionInfo?.FirstOrDefault(x => x.Id == driveId);
-            if (driveInfo != null)
-                return driveInfo;
-
-            var drive = await graphServiceClient.Drives[driveId].GetAsync();
-            
-            driveInfo = new DriveConnectionInfo
-            {
-                Id = drive.Id,
-                Root = siteUrl.GetFolderNameFromSpoUrl(),
-                Path = drive.WebUrl,
-                Name = drive.Name,
-                DownloadCompleted = false
-            };
-
-            if (drivesConnectionInfo == null)
-                drivesConnectionInfo = new List<DriveConnectionInfo>();
-
-            drivesConnectionInfo.Add(driveInfo);
-
-            return driveInfo;
+            return $"{className}: {msg}";
         }
-
         #endregion
     }
 }
