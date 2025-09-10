@@ -153,14 +153,59 @@
   <data name="ErrorAccessDeniedToDrive" xml:space="preserve">
     <value>User or Application is not authorized to download from this Drive</value>
   </data>
+  <data name="ErrorCannotMoveEmailToQuarantine" xml:space="preserve">
+    <value>Cannot move email to quarantine; the quarantine folder could not be established for user '{User}'</value>
+  </data>
+  <data name="ErrorCannotMoveItemCauseFolderNotFound" xml:space="preserve">
+    <value>Cannot move item to quarantine because the quarantine folder could not be found or created in drive '{DriveId}'</value>
+  </data>
   <data name="ErrorDeletingDriveItem" xml:space="preserve">
     <value>Error deleting DriveItem</value>
+  </data>
+  <data name="ErrorDocumentIdNullOrEmpty" xml:space="preserve">
+    <value>Restore operation failed: Original DocumentId cannot be null or empty</value>
+  </data>
+  <data name="ErrorDriveIdNullOrEmpty" xml:space="preserve">
+    <value>Restore operation failed: DriveId cannot be null or empty</value>
+  </data>
+  <data name="ErrorEmailNotFoundOnFolder" xml:space="preserve">
+    <value>Email '{MessageId}' not found in '{SourceFolder}' either. The item may be permanently purged or the ID is incorrect</value>
+  </data>
+  <data name="ErrorFailedToCreateQuarantineFolder" xml:space="preserve">
+    <value>Failed to create quarantine folder: {InnerEx}</value>
+  </data>
+  <data name="ErrorFailedToEnsureQuarantineFolderExists" xml:space="preserve">
+    <value>Failed to ensure quarantine mail folder exists for user '{User}'</value>
+  </data>
+  <data name="ErrorFailedToMoveDriveItem" xml:space="preserve">
+    <value>Failed to move DriveItem '{DocumentId}' to quarantine</value>
+  </data>
+  <data name="ErrorFailedToMoveMessage" xml:space="preserve">
+    <value>Failed to move message '{MessageId}' to quarantine</value>
+  </data>
+  <data name="ErrorFailedToResolveValidSiteId" xml:space="preserve">
+    <value>Failed to resolve a valid composite Site ID from URL '{SiteUrl}'</value>
+  </data>
+  <data name="ErrorFailedToRestoreMessage" xml:space="preserve">
+    <value>Failed to restore message '{MessageId}' from quarantine</value>
   </data>
   <data name="ErrorForwardingEmail" xml:space="preserve">
     <value>Error forwarding email to recipient</value>
   </data>
   <data name="ErrorGettingDriveItemMetadata" xml:space="preserve">
     <value>Error getting Drive Item Metadata</value>
+  </data>
+  <data name="ErrorGraphApiErrorMovingMessage" xml:space="preserve">
+    <value>Graph API error while moving message '{MessageId}' to quarantine. Code: {ErrorCode}, Message: {ErrorMessage}</value>
+  </data>
+  <data name="ErrorGraphApiErrorWhileRestoringMessage" xml:space="preserve">
+    <value>Graph API error while restoring message '{MessageId}'. Code: {ErrorCode}, Message: {ErrorMessage}</value>
+  </data>
+  <data name="ErrorGraphApiRestoreProcessFail" xml:space="preserve">
+    <value>Graph API error during restore process for '{DocumentId}'. Code: {ErrorCode}, Message: {ErrorMessage}</value>
+  </data>
+  <data name="ErrorGraphServiceClientNotInitialized" xml:space="preserve">
+    <value>Cannot restore item. GraphServiceClient is not initialized</value>
   </data>
   <data name="ErrorInitializingGraph" xml:space="preserve">
     <value>Error Initializing Microsoft Graph client</value>
@@ -174,14 +219,38 @@
   <data name="ErrorInitializingTeamsConnection" xml:space="preserve">
     <value>Error initializing MS Teams connection</value>
   </data>
+  <data name="ErrorMandatoryParametersAreMissing" xml:space="preserve">
+    <value>Restore failed: siteUrl, driveId, and originalDocumentId are all required</value>
+  </data>
+  <data name="ErrorMandatoryParametersAreMissingForDriveItem" xml:space="preserve">
+    <value>Restore failed: driveId, documentId, and originalParentFolderId are all required</value>
+  </data>
+  <data name="ErrorMessageIdNotFoundOnFolder" xml:space="preserve">
+    <value>Email '{MessageId}' not found in '{SourceFolder}'. Proceeding to check recoverable items</value>
+  </data>
+  <data name="ErrorMissingParametersRequiredToRestoreEmail" xml:space="preserve">
+    <value>Restore email failed: userAccount and messageId are required</value>
+  </data>
+  <data name="ErrorMissingParentFolderIdOnRestore" xml:space="preserve">
+    <value>Cannot restore email '{MessageId}': Original parent folder ID was not provided</value>
+  </data>
   <data name="ErrorMovingDriveItem" xml:space="preserve">
     <value>Error moving DriveItem</value>
   </data>
   <data name="ErrorMovingEmail" xml:space="preserve">
     <value>Error moving email to folder</value>
   </data>
+  <data name="ErrorNullStreamReceivedFromReciclerBin" xml:space="preserve">
+    <value>Received a null stream from recycle bin for Site ID '{SiteId}'</value>
+  </data>
+  <data name="ErrorQuarantineFolderNotFoundOnRestore" xml:space="preserve">
+    <value>Cannot restore email; the quarantine folder could not be found for user '{User}'</value>
+  </data>
   <data name="ErrorRemovingEmail" xml:space="preserve">
     <value>Error removing email</value>
+  </data>
+  <data name="ErrorRestoringDocument" xml:space="preserve">
+    <value>Graph API error while restoring document '{DocumentId}'. Code: {ErrorCode}, Message: {ErrorMessage}</value>
   </data>
   <data name="ErrorRetrievingAzureAdGroups" xml:space="preserve">
     <value>Error retrieving AzureAd Groups</value>
@@ -237,17 +306,86 @@
   <data name="ErrorSendingEmail" xml:space="preserve">
     <value>Error sending email to recipient</value>
   </data>
+  <data name="ErrorUnexpectedEnsuringFolder" xml:space="preserve">
+    <value>Unexpected error ensuring quarantine folder: {ex}</value>
+  </data>
+  <data name="ErrorUnexpectedErrorFoundGettingMessage" xml:space="preserve">
+    <value>An unexpected error occurred while getting Message information</value>
+  </data>
+  <data name="ErrorUnexpectedErrorWhileCheckingSource" xml:space="preserve">
+    <value>An unexpected error occurred while checking '{SourceFolder}'</value>
+  </data>
+  <data name="ErrorUnexpectedRestoringDocument" xml:space="preserve">
+    <value>An unexpected error occurred while restoring document '{DocumentId}'</value>
+  </data>
   <data name="ErrorUpdatingSharepointItems" xml:space="preserve">
     <value>Error updating items in Sharepoint document library</value>
   </data>
   <data name="FileAlreadyExists" xml:space="preserve">
     <value>File already exists. Retrying with another name.</value>
   </data>
+  <data name="GraphApiErrorWhileRestoringDriveItem" xml:space="preserve">
+    <value>Graph API error while restoring DriveItem '{DocumentId}'. Code: {ErrorCode}, Message: {ErrorMessage}</value>
+  </data>
   <data name="GraphApiExceptionReturningEmptyResult" xml:space="preserve">
     <value>Error retrieving document Ids. Returning empty results</value>
   </data>
   <data name="GraphRetryAttempts" xml:space="preserve">
     <value>Retrying in {0} seconds. Attepmt: {1}</value>
+  </data>
+  <data name="InfoAttemptingToRestoreDriveItem" xml:space="preserve">
+    <value>Attempting to restore item '{DocumentId}' in drive '{DriveId}' to its original parent folder '{ParentId}'</value>
+  </data>
+  <data name="InfoAttemptingToRestoreItem" xml:space="preserve">
+    <value>Attempting to restore item '{DocumentId}' from site '{SiteUrl}'</value>
+  </data>
+  <data name="InfoAttentingToRestoreEmail" xml:space="preserve">
+    <value>Attempting to restore email ID '{MessageId}' for user '{User}' to '{DestinationFolder}'</value>
+  </data>
+  <data name="InfoDocumentRestoredSuccessfully" xml:space="preserve">
+    <value>Successfully restored document '{DocumentId}'. New ID (if changed) is '{NewId}', restored to '{ParentPath}'</value>
+  </data>
+  <data name="InfoEmailRestoredSuccessfully" xml:space="preserve">
+    <value>Successfully restored email from '{SourceFolder}'</value>
+  </data>
+  <data name="InfoFoundExistingQuarantineFolder" xml:space="preserve">
+    <value>Found existing quarantine folder '{FolderName}' in drive '{DriveId}'</value>
+  </data>
+  <data name="InfoFoundExistingQuarantineMailFolder" xml:space="preserve">
+    <value>Found existing quarantine mail folder '{FolderName}' for user '{User}'</value>
+  </data>
+  <data name="InfoItemMovedSuccessfullyToQuarantine" xml:space="preserve">
+    <value>Successfully moved item '{DocumentId}' to quarantine folder</value>
+  </data>
+  <data name="InfoItemRestoredSucessfully" xml:space="preserve">
+    <value>Successfully restored item '{DocumentId}' to its original location</value>
+  </data>
+  <data name="InfoMessageMovedSuccessfullyToQuarantine" xml:space="preserve">
+    <value>Successfully moved message '{MessageId}' to quarantine for user '{User}'</value>
+  </data>
+  <data name="InfoQuarantineFolderCreatedSucessfully" xml:space="preserve">
+    <value>Successfully created quarantine folder '{FolderName}' and restricted access</value>
+  </data>
+  <data name="InfoQuarantineFolderNotFound" xml:space="preserve">
+    <value>Quarantine folder '{folderName}' not found in drive '{driveId}'. Creating it now</value>
+  </data>
+  <data name="InfoQuarantineMailFolderNotFound" xml:space="preserve">
+    <value>Quarantine mail folder '{FolderName}' not found for user '{User}'. Creating it now</value>
+  </data>
+  <data name="InfoResolvedValidSiteId" xml:space="preserve">
+    <value>Resolved composite Site ID: {SiteId}</value>
+  </data>
+  <data name="InfoRestoreCommandSentSuccessfully" xml:space="preserve">
+    <value>Restore command sent successfully for original item ID '{DocumentId}'</value>
+  </data>
+  <data name="InfoRestoringDocument" xml:space="preserve">
+    <value>Attempting to restore document with original ID '{DocumentId}' from drive '{DriveId}'</value>
+  </data>
+  <data name="InfoSuccessfullyCreatedHiddenMailFolder" xml:space="preserve">
+    <value>Successfully created hidden quarantine mail folder</value>
+  </data>
+  <data name="InfoSuccessfullyRestoredMessage" xml:space="preserve">
+    <value>Successfully restored message '{MessageId}' to folder '{DestinationId}'</value>
   </data>
   <data name="InitializingExchangeConnection" xml:space="preserve">
     <value>Initializing Exchange Connection</value>
@@ -281,5 +419,11 @@
   </data>
   <data name="TokenUnencrypted" xml:space="preserve">
     <value>Cannot retrieve encrypted token, token may be unencrypted</value>
+  </data>
+  <data name="UnexpectedErrorWhileRestoringDocument" xml:space="preserve">
+    <value>An unexpected error occurred while restoring document '{DocumentId}'</value>
+  </data>
+  <data name="WarningCouldNotFindItem" xml:space="preserve">
+    <value>Could not find item with original DriveItem ID '{DocumentId}' in the recycle bin for Site '{SiteId}'</value>
   </data>
 </root>

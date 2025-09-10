@@ -41,10 +41,17 @@ namespace Coginov.GraphApi.Library.Services
         Task<MessageCollectionResponse> GetEmailsFromFolderAfterDate(string userAccount, string folder, DateTime afterDate, int pageSize = 10, bool includeAttachments = false, bool preferText = false, string filterOperator = "ge");
         Task<MessageCollectionResponse> GetEmailsFromNextLink(string nextLink);
 
-        Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName);
+        Task<string?> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName);
         Task<MailFolder> GetEmailFolderById(string userAccount, string folderId);
         Task<List<MailFolder>> GetEmailFolders(string userAccount);
-
+        Task<Message?> RestoreDeletedEmailAsync(string userAccount, string messageId, string originalFolderName = "inbox");
+        Task<Message> MoveEmailFromFolderAsync(string userAccount, string messageId, string sourceFolder, string destinationFolder);
+        Task DiscoverAllUserAccountFolderNamesAsync(string userAccount);
+        Task<DriveItem?> MoveDriveItemToQuarantineAsync(string driveId, string documentId);
+        Task<DriveItem?> RestoreDriveItemFromQuarantineAsync(string driveId, string documentId, string originalParentId);
+        Task<string?> GetExchangeParentFolderIdFromMessageId(string userAccount, string messageId);
+        Task<Message?> MoveEmailToQuarantineAsync(string userAccount, string messageId);
+        Task<Message?> RestoreEmailFromQuarantineAsync(string userAccount, string messageId, string originalParentFolderId);
 
         // Methods not currently in use. Developed for future features and needs 
         Task<bool> ForwardEmail(string userAccount, string emailId, string forwardAccount);
@@ -71,5 +78,8 @@ namespace Coginov.GraphApi.Library.Services
         Task<List<DriveItem>> GetListOfFilesInFolder(DriveItemInfo driveItem, DateTimeOffset? lastDate = null, int batchSize = 100);
         Task<string> GetTokenApplicationPermissions(string tenantId, string clientId, string clientSecret, string[] scopes);
         Task<string> GetTokenDelegatedPermissions(string tenantId, string clientId, string[] scopes, CancellationToken cancellationToken = default); // Also used by QoreAudit
+
+        Task<DriveItem?> RestoreDocumentByIdAsync(string driveId, string documentId);
+        Task<DriveItem?> RestoreItemAsync(string driveId, string originalDocumentId);
     }
 }

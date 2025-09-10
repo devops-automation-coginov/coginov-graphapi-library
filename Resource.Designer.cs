@@ -169,11 +169,110 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Cannot move email to quarantine; the quarantine folder could not be established for user &apos;{User}&apos;.
+        /// </summary>
+        internal static string ErrorCannotMoveEmailToQuarantine {
+            get {
+                return ResourceManager.GetString("ErrorCannotMoveEmailToQuarantine", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot move item to quarantine because the quarantine folder could not be found or created in drive &apos;{DriveId}&apos;.
+        /// </summary>
+        internal static string ErrorCannotMoveItemCauseFolderNotFound {
+            get {
+                return ResourceManager.GetString("ErrorCannotMoveItemCauseFolderNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error deleting DriveItem.
         /// </summary>
         internal static string ErrorDeletingDriveItem {
             get {
                 return ResourceManager.GetString("ErrorDeletingDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore operation failed: Original DocumentId cannot be null or empty.
+        /// </summary>
+        internal static string ErrorDocumentIdNullOrEmpty {
+            get {
+                return ResourceManager.GetString("ErrorDocumentIdNullOrEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore operation failed: DriveId cannot be null or empty.
+        /// </summary>
+        internal static string ErrorDriveIdNullOrEmpty {
+            get {
+                return ResourceManager.GetString("ErrorDriveIdNullOrEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Email &apos;{MessageId}&apos; not found in &apos;{SourceFolder}&apos; either. The item may be permanently purged or the ID is incorrect.
+        /// </summary>
+        internal static string ErrorEmailNotFoundOnFolder {
+            get {
+                return ResourceManager.GetString("ErrorEmailNotFoundOnFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to create quarantine folder: {InnerEx}.
+        /// </summary>
+        internal static string ErrorFailedToCreateQuarantineFolder {
+            get {
+                return ResourceManager.GetString("ErrorFailedToCreateQuarantineFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to ensure quarantine mail folder exists for user &apos;{User}&apos;.
+        /// </summary>
+        internal static string ErrorFailedToEnsureQuarantineFolderExists {
+            get {
+                return ResourceManager.GetString("ErrorFailedToEnsureQuarantineFolderExists", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to move DriveItem &apos;{DocumentId}&apos; to quarantine.
+        /// </summary>
+        internal static string ErrorFailedToMoveDriveItem {
+            get {
+                return ResourceManager.GetString("ErrorFailedToMoveDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to move message &apos;{MessageId}&apos; to quarantine.
+        /// </summary>
+        internal static string ErrorFailedToMoveMessage {
+            get {
+                return ResourceManager.GetString("ErrorFailedToMoveMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to resolve a valid composite Site ID from URL &apos;{SiteUrl}&apos;.
+        /// </summary>
+        internal static string ErrorFailedToResolveValidSiteId {
+            get {
+                return ResourceManager.GetString("ErrorFailedToResolveValidSiteId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to restore message &apos;{MessageId}&apos; from quarantine.
+        /// </summary>
+        internal static string ErrorFailedToRestoreMessage {
+            get {
+                return ResourceManager.GetString("ErrorFailedToRestoreMessage", resourceCulture);
             }
         }
         
@@ -192,6 +291,42 @@ namespace Coginov.GraphApi.Library {
         internal static string ErrorGettingDriveItemMetadata {
             get {
                 return ResourceManager.GetString("ErrorGettingDriveItemMetadata", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Graph API error while moving message &apos;{MessageId}&apos; to quarantine. Code: {ErrorCode}, Message: {ErrorMessage}.
+        /// </summary>
+        internal static string ErrorGraphApiErrorMovingMessage {
+            get {
+                return ResourceManager.GetString("ErrorGraphApiErrorMovingMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Graph API error while restoring message &apos;{MessageId}&apos;. Code: {ErrorCode}, Message: {ErrorMessage}.
+        /// </summary>
+        internal static string ErrorGraphApiErrorWhileRestoringMessage {
+            get {
+                return ResourceManager.GetString("ErrorGraphApiErrorWhileRestoringMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Graph API error during restore process for &apos;{DocumentId}&apos;. Code: {ErrorCode}, Message: {ErrorMessage}.
+        /// </summary>
+        internal static string ErrorGraphApiRestoreProcessFail {
+            get {
+                return ResourceManager.GetString("ErrorGraphApiRestoreProcessFail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot restore item. GraphServiceClient is not initialized.
+        /// </summary>
+        internal static string ErrorGraphServiceClientNotInitialized {
+            get {
+                return ResourceManager.GetString("ErrorGraphServiceClientNotInitialized", resourceCulture);
             }
         }
         
@@ -232,6 +367,51 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Restore failed: siteUrl, driveId, and originalDocumentId are all required.
+        /// </summary>
+        internal static string ErrorMandatoryParametersAreMissing {
+            get {
+                return ResourceManager.GetString("ErrorMandatoryParametersAreMissing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore failed: driveId, documentId, and originalParentFolderId are all required.
+        /// </summary>
+        internal static string ErrorMandatoryParametersAreMissingForDriveItem {
+            get {
+                return ResourceManager.GetString("ErrorMandatoryParametersAreMissingForDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Email &apos;{MessageId}&apos; not found in &apos;{SourceFolder}&apos;. Proceeding to check recoverable items.
+        /// </summary>
+        internal static string ErrorMessageIdNotFoundOnFolder {
+            get {
+                return ResourceManager.GetString("ErrorMessageIdNotFoundOnFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore email failed: userAccount and messageId are required.
+        /// </summary>
+        internal static string ErrorMissingParametersRequiredToRestoreEmail {
+            get {
+                return ResourceManager.GetString("ErrorMissingParametersRequiredToRestoreEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot restore email &apos;{MessageId}&apos;: Original parent folder ID was not provided.
+        /// </summary>
+        internal static string ErrorMissingParentFolderIdOnRestore {
+            get {
+                return ResourceManager.GetString("ErrorMissingParentFolderIdOnRestore", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error moving DriveItem.
         /// </summary>
         internal static string ErrorMovingDriveItem {
@@ -250,11 +430,38 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Received a null stream from recycle bin for Site ID &apos;{SiteId}&apos;.
+        /// </summary>
+        internal static string ErrorNullStreamReceivedFromReciclerBin {
+            get {
+                return ResourceManager.GetString("ErrorNullStreamReceivedFromReciclerBin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot restore email; the quarantine folder could not be found for user &apos;{User}&apos;.
+        /// </summary>
+        internal static string ErrorQuarantineFolderNotFoundOnRestore {
+            get {
+                return ResourceManager.GetString("ErrorQuarantineFolderNotFoundOnRestore", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error removing email.
         /// </summary>
         internal static string ErrorRemovingEmail {
             get {
                 return ResourceManager.GetString("ErrorRemovingEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Graph API error while restoring document &apos;{DocumentId}&apos;. Code: {ErrorCode}, Message: {ErrorMessage}.
+        /// </summary>
+        internal static string ErrorRestoringDocument {
+            get {
+                return ResourceManager.GetString("ErrorRestoringDocument", resourceCulture);
             }
         }
         
@@ -421,6 +628,42 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Unexpected error ensuring quarantine folder: {ex}.
+        /// </summary>
+        internal static string ErrorUnexpectedEnsuringFolder {
+            get {
+                return ResourceManager.GetString("ErrorUnexpectedEnsuringFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to An unexpected error occurred while getting Message information.
+        /// </summary>
+        internal static string ErrorUnexpectedErrorFoundGettingMessage {
+            get {
+                return ResourceManager.GetString("ErrorUnexpectedErrorFoundGettingMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to An unexpected error occurred while checking &apos;{SourceFolder}&apos;.
+        /// </summary>
+        internal static string ErrorUnexpectedErrorWhileCheckingSource {
+            get {
+                return ResourceManager.GetString("ErrorUnexpectedErrorWhileCheckingSource", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to An unexpected error occurred while restoring document &apos;{DocumentId}&apos;.
+        /// </summary>
+        internal static string ErrorUnexpectedRestoringDocument {
+            get {
+                return ResourceManager.GetString("ErrorUnexpectedRestoringDocument", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error updating items in Sharepoint document library.
         /// </summary>
         internal static string ErrorUpdatingSharepointItems {
@@ -439,6 +682,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Graph API error while restoring DriveItem &apos;{DocumentId}&apos;. Code: {ErrorCode}, Message: {ErrorMessage}.
+        /// </summary>
+        internal static string GraphApiErrorWhileRestoringDriveItem {
+            get {
+                return ResourceManager.GetString("GraphApiErrorWhileRestoringDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error retrieving document Ids. Returning empty results.
         /// </summary>
         internal static string GraphApiExceptionReturningEmptyResult {
@@ -453,6 +705,168 @@ namespace Coginov.GraphApi.Library {
         internal static string GraphRetryAttempts {
             get {
                 return ResourceManager.GetString("GraphRetryAttempts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Attempting to restore item &apos;{DocumentId}&apos; in drive &apos;{DriveId}&apos; to its original parent folder &apos;{ParentId}&apos;.
+        /// </summary>
+        internal static string InfoAttemptingToRestoreDriveItem {
+            get {
+                return ResourceManager.GetString("InfoAttemptingToRestoreDriveItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Attempting to restore item &apos;{DocumentId}&apos; from site &apos;{SiteUrl}&apos;.
+        /// </summary>
+        internal static string InfoAttemptingToRestoreItem {
+            get {
+                return ResourceManager.GetString("InfoAttemptingToRestoreItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Attempting to restore email ID &apos;{MessageId}&apos; for user &apos;{User}&apos; to &apos;{DestinationFolder}&apos;.
+        /// </summary>
+        internal static string InfoAttentingToRestoreEmail {
+            get {
+                return ResourceManager.GetString("InfoAttentingToRestoreEmail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully restored document &apos;{DocumentId}&apos;. New ID (if changed) is &apos;{NewId}&apos;, restored to &apos;{ParentPath}&apos;.
+        /// </summary>
+        internal static string InfoDocumentRestoredSuccessfully {
+            get {
+                return ResourceManager.GetString("InfoDocumentRestoredSuccessfully", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully restored email from &apos;{SourceFolder}&apos;.
+        /// </summary>
+        internal static string InfoEmailRestoredSuccessfully {
+            get {
+                return ResourceManager.GetString("InfoEmailRestoredSuccessfully", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Found existing quarantine folder &apos;{FolderName}&apos; in drive &apos;{DriveId}&apos;.
+        /// </summary>
+        internal static string InfoFoundExistingQuarantineFolder {
+            get {
+                return ResourceManager.GetString("InfoFoundExistingQuarantineFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Found existing quarantine mail folder &apos;{FolderName}&apos; for user &apos;{User}&apos;.
+        /// </summary>
+        internal static string InfoFoundExistingQuarantineMailFolder {
+            get {
+                return ResourceManager.GetString("InfoFoundExistingQuarantineMailFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully moved item &apos;{DocumentId}&apos; to quarantine folder.
+        /// </summary>
+        internal static string InfoItemMovedSuccessfullyToQuarantine {
+            get {
+                return ResourceManager.GetString("InfoItemMovedSuccessfullyToQuarantine", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully restored item &apos;{DocumentId}&apos; to its original location.
+        /// </summary>
+        internal static string InfoItemRestoredSucessfully {
+            get {
+                return ResourceManager.GetString("InfoItemRestoredSucessfully", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully moved message &apos;{MessageId}&apos; to quarantine for user &apos;{User}&apos;.
+        /// </summary>
+        internal static string InfoMessageMovedSuccessfullyToQuarantine {
+            get {
+                return ResourceManager.GetString("InfoMessageMovedSuccessfullyToQuarantine", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully created quarantine folder &apos;{FolderName}&apos; and restricted access.
+        /// </summary>
+        internal static string InfoQuarantineFolderCreatedSucessfully {
+            get {
+                return ResourceManager.GetString("InfoQuarantineFolderCreatedSucessfully", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Quarantine folder &apos;{folderName}&apos; not found in drive &apos;{driveId}&apos;. Creating it now.
+        /// </summary>
+        internal static string InfoQuarantineFolderNotFound {
+            get {
+                return ResourceManager.GetString("InfoQuarantineFolderNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Quarantine mail folder &apos;{FolderName}&apos; not found for user &apos;{User}&apos;. Creating it now.
+        /// </summary>
+        internal static string InfoQuarantineMailFolderNotFound {
+            get {
+                return ResourceManager.GetString("InfoQuarantineMailFolderNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resolved composite Site ID: {SiteId}.
+        /// </summary>
+        internal static string InfoResolvedValidSiteId {
+            get {
+                return ResourceManager.GetString("InfoResolvedValidSiteId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restore command sent successfully for original item ID &apos;{DocumentId}&apos;.
+        /// </summary>
+        internal static string InfoRestoreCommandSentSuccessfully {
+            get {
+                return ResourceManager.GetString("InfoRestoreCommandSentSuccessfully", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Attempting to restore document with original ID &apos;{DocumentId}&apos; from drive &apos;{DriveId}&apos;.
+        /// </summary>
+        internal static string InfoRestoringDocument {
+            get {
+                return ResourceManager.GetString("InfoRestoringDocument", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully created hidden quarantine mail folder.
+        /// </summary>
+        internal static string InfoSuccessfullyCreatedHiddenMailFolder {
+            get {
+                return ResourceManager.GetString("InfoSuccessfullyCreatedHiddenMailFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Successfully restored message &apos;{MessageId}&apos; to folder &apos;{DestinationId}&apos;.
+        /// </summary>
+        internal static string InfoSuccessfullyRestoredMessage {
+            get {
+                return ResourceManager.GetString("InfoSuccessfullyRestoredMessage", resourceCulture);
             }
         }
         
@@ -552,6 +966,24 @@ namespace Coginov.GraphApi.Library {
         internal static string TokenUnencrypted {
             get {
                 return ResourceManager.GetString("TokenUnencrypted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to An unexpected error occurred while restoring document &apos;{DocumentId}&apos;.
+        /// </summary>
+        internal static string UnexpectedErrorWhileRestoringDocument {
+            get {
+                return ResourceManager.GetString("UnexpectedErrorWhileRestoringDocument", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Could not find item with original DriveItem ID &apos;{DocumentId}&apos; in the recycle bin for Site &apos;{SiteId}&apos;.
+        /// </summary>
+        internal static string WarningCouldNotFindItem {
+            get {
+                return ResourceManager.GetString("WarningCouldNotFindItem", resourceCulture);
             }
         }
     }

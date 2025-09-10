@@ -6,11 +6,13 @@ using Coginov.GraphApi.Library.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Drives.Item.Items.Item.Copy;
+using Microsoft.Graph.Drives.Item.Items.Item.Restore;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Graph.Users.Item.SendMail;
 using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Abstractions.Authentication;
+using Microsoft.Kiota.Abstractions.Serialization;
 using Microsoft.Kiota.Authentication.Azure;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
@@ -368,14 +370,14 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var uri = new Uri(siteUrl);
-                var siteId = await graphServiceClient.Sites[$"{uri.Host}:{uri.PathAndQuery}"]
+                var site = await graphServiceClient.Sites[$"{uri.Host}:{uri.PathAndQuery}"]
                     .GetAsync(requestConfiguration => 
                     {
                         requestConfiguration.QueryParameters.Select = new string[] { "id" };
                     });                    
                     
 
-                return siteId.Id;
+                return site?.Id;
             }
             catch(Exception ex)
             {
@@ -661,7 +663,8 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 var driveRoot = await GetDriveRoot(driveId);
-                return await graphServiceClient.Drives[driveRoot.Id]
+                return await graphServiceClient
+                    .Drives[driveRoot.Id]
                     .Items[documentId]
                     .GetAsync();
             }
@@ -1274,6 +1277,168 @@ namespace Coginov.GraphApi.Library.Services
             return null;
         }
 
+        /// <summary>
+        /// Restores a previously deleted document from the Recycle Bin of a specific drive
+        /// back to its original location.
+        /// </summary>
+        /// <param name="driveId">The ID of the Drive where the item was originally located.</param>
+        /// <param name="documentId">The original ID of the DriveItem before it was deleted.</param>
+        /// <returns>A DriveItem object representing the restored item if successful; otherwise, null.</returns>
+        public async Task<DriveItem?> RestoreDocumentByIdAsync(string driveId, string documentId)
+        {
+            if (string.IsNullOrWhiteSpace(driveId))
+            {
+                logger.LogError($"{ Resource.ErrorDriveIdNullOrEmpty}.");
+                return null;
+            }
+            if (string.IsNullOrWhiteSpace(documentId))
+            {
+                logger.LogError($"{Resource.ErrorDocumentIdNullOrEmpty}.");
+                return null;
+            }
+
+            logger.LogInformation($"{Resource.InfoRestoringDocument}.", documentId, driveId);
+
+            try
+            {
+                // The Microsoft Graph SDK provides a fluent API to build this request.
+                // We target the deleted item by its original ID and call the Restore action.
+                // Note: The SDK handles the empty request body required by the POST request on old versions of the API.
+                // but the SDK v5 requires the object to be instantiated.
+                var requestBody = new RestorePostRequestBody();
+
+                var restoredItem = await graphServiceClient
+                    .Drives[driveId]
+                    .Items[documentId]
+                    .Restore
+                    .PostAsync(requestBody);
+
+                logger.LogInformation($"{Resource.InfoDocumentRestoredSuccessfully}.", documentId, restoredItem?.Id, restoredItem?.ParentReference?.Path);
+
+                // The API returns the DriveItem object representing the restored item.
+                // This is useful because its location or even its ID might change if a file
+                // with the same name already exists in the original location.
+                return restoredItem;
+            }
+            catch (ODataError odataError)
+            {
+                // Catching a specific ODataError provides much richer error details.
+                // A common error is "itemNotFound" if the item is not in the Recycle Bin
+                // (e.g., it was permanently deleted or the ID is wrong).
+                logger.LogError(odataError, $"{Resource.ErrorRestoringDocument}", documentId, odataError.Error?.Code, odataError.Error?.Message);
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorUnexpectedRestoringDocument}.", documentId);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Restores a deleted item from a SharePoint, OneDrive for Business, or Teams recycle bin.
+        /// This method is stateless and accepts all necessary information to perform its task.
+        /// </summary>
+        /// <param name="siteUrl">The URL of the parent SharePoint site (e.g., from the data source config).</param>
+        /// <param name="driveId">The ID of the drive where the item was originally located.</param>
+        /// <param name="originalDocumentId">The original ID of the DriveItem before it was deleted.</param>
+        /// <returns>A DriveItem representing the restored item if successful; otherwise, null.</returns>
+        public async Task<DriveItem?> RestoreItemAsync(string driveId, string originalDocumentId)
+        {
+            string siteUrl = this.siteUrl;
+
+            var requestInfo1 = new RequestInformation
+            {
+                HttpMethod = Method.GET,
+                UrlTemplate = "https://graph.microsoft.com/v1.0/drives/{driveId}/items/root/children?$filter=deleted ne null",
+                PathParameters = new Dictionary<string, object>
+                {
+                    { "driveId", driveId }
+                }
+            };
+
+            var errorMapping = new Dictionary<string, ParsableFactory<IParsable>>
+            {
+                { "4XX", ODataError.CreateFromDiscriminatorValue },
+                { "5XX", ODataError.CreateFromDiscriminatorValue }
+            };
+
+            var response = await graphServiceClient.RequestAdapter.SendAsync(
+                requestInfo1,
+                DriveItemCollectionResponse.CreateFromDiscriminatorValue,
+                errorMapping
+            );
+
+            if (graphServiceClient == null)
+            {
+                logger.LogError($"{Resource.ErrorGraphServiceClientNotInitialized}.");
+                return null;
+            }
+            if (string.IsNullOrWhiteSpace(siteUrl) || string.IsNullOrWhiteSpace(driveId) || string.IsNullOrWhiteSpace(originalDocumentId))
+            {
+                logger.LogError($"{Resource.ErrorMandatoryParametersAreMissing}.");
+                return null;
+            }
+
+            logger.LogInformation($"{Resource.InfoAttemptingToRestoreItem}.", originalDocumentId, siteUrl);
+
+            try
+            {
+                // Get the composite Site ID using YOUR proven method
+                var compositeSiteId = await GetSiteId(siteUrl);
+                if (string.IsNullOrWhiteSpace(compositeSiteId))
+                {
+                    logger.LogError($"{Resource.ErrorFailedToResolveValidSiteId}.", siteUrl);
+                    return null;
+                }
+                logger.LogInformation($"{Resource.InfoResolvedValidSiteId}", compositeSiteId);
+
+                // Find the item in the Site's Recycle Bin
+                var requestAdapter = graphServiceClient.RequestAdapter;
+                var recycleBinUrl = $"{requestAdapter.BaseUrl}/sites/{compositeSiteId}/recycleBin/items";
+                var requestInfo = new RequestInformation { HttpMethod = Method.GET, UrlTemplate = recycleBinUrl };
+
+                using var responseStream = await requestAdapter.SendPrimitiveAsync<Stream>(requestInfo);
+                if (responseStream == null)
+                {
+                    logger.LogError($"{Resource.ErrorNullStreamReceivedFromReciclerBin}.", compositeSiteId);
+                    return null;
+                }
+
+                string responseContent = await new StreamReader(responseStream).ReadToEndAsync();
+                var recycleBinItemsResponse = JsonConvert.DeserializeObject<RecycleBinCollectionResponse>(responseContent);
+                var itemToRestore = recycleBinItemsResponse?.Value?.FirstOrDefault(item => item.DriveItemId == originalDocumentId);
+
+                if (itemToRestore?.Id == null)
+                {
+                    logger.LogWarning($"{Resource.WarningCouldNotFindItem}.", originalDocumentId, compositeSiteId);
+                    return null;
+                }
+
+                // Call the Restore action
+                var restoreUrl = $"{requestAdapter.BaseUrl}/sites/{compositeSiteId}/recycleBin/items/{itemToRestore.Id}/restore";
+                var restoreRequestInfo = new RequestInformation { HttpMethod = Method.POST, UrlTemplate = restoreUrl };
+                await requestAdapter.SendNoContentAsync(restoreRequestInfo);
+
+                logger.LogInformation($"{Resource.InfoRestoreCommandSentSuccessfully}.", originalDocumentId);
+
+                // Verify and return the restored item using the provided driveId
+                var restoredItem = await graphServiceClient.Drives[driveId].Items[originalDocumentId].GetAsync();
+                return restoredItem;
+            }
+            catch (ODataError odataError)
+            {
+                logger.LogError(odataError, $"{Resource.ErrorGraphApiRestoreProcessFail}", originalDocumentId, odataError.Error?.Code, odataError.Error?.Message);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.UnexpectedErrorWhileRestoringDocument}.", originalDocumentId);
+                return null;
+            }
+        }
+
         #region Exchange Online methods
 
         /// <summary>
@@ -1284,12 +1449,19 @@ namespace Coginov.GraphApi.Library.Services
         /// <param name="userAccount">The user's email address or principal name.</param>
         /// <param name="fileName">The name to use for the saved email file.</param>
         /// <returns>A boolean value indicating whether the email was successfully saved.</returns>
-        public async Task<bool> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
+        public async Task<string?> SaveEmailToFileSystem(Message message, string downloadLocation, string userAccount, string fileName)
         {
             // The current limit for email size in Office 365 is 15O MB. Tested with a big email and working as expected
             try
             {
-                string path = Path.Combine(downloadLocation, userAccount, fileName);
+                string outputDir = Path.Combine(downloadLocation, userAccount);
+                string path = Path.Combine(outputDir, fileName);
+
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
 
                 var email = await graphServiceClient.Users[userAccount].Messages[message.Id].Content.GetAsync();
@@ -1297,19 +1469,19 @@ namespace Coginov.GraphApi.Library.Services
                 using (FileStream outputFileStream = new FileStream(path, FileMode.Create))
                     email.CopyTo(outputFileStream);
 
-                return true;
+                return outputDir;
             }
             catch (TaskCanceledException)
             {
                 // We got a timeout, ignore for now
-                logger.LogInformation(LogPrefix($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next"));
+                logger.LogError(LogPrefix($"{Resource.ErrorSavingExchangeMessage} File too big. Go to next"));
             }
             catch (Exception ex)
             {
                 logger.LogError(LogPrefix($"{Resource.ErrorSavingExchangeMessage}: {ex.Message}. {ex.InnerException?.Message}"));
             }
 
-            return false;
+            return null;
         }
 
         /// <summary>
@@ -1669,6 +1841,379 @@ namespace Coginov.GraphApi.Library.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Restores a deleted email for a user, checking both the 'Deleted Items' folder (soft delete)
+        /// and the 'Recoverable Items' store (hard delete).
+        /// </summary>
+        /// <param name="userAccount">The User Principal Name (e.g., 'user@tenant.com') or the user's object ID.</param>
+        /// <param name="messageId">The ID of the message to be restored.</param>
+        /// <param name="originalFolderName">The well-known name of the folder to restore to (e.g., "inbox", "sentitems").</param>
+        /// <returns>The Message object representing the restored email if successful; otherwise, null.</returns>
+        public async Task<Message?> RestoreDeletedEmailAsync(string userAccount, string messageId, string originalFolderName = "inbox")
+        {
+            if (string.IsNullOrWhiteSpace(userAccount) || string.IsNullOrWhiteSpace(messageId))
+            {
+                logger.LogError($"{Resource.ErrorMissingParametersRequiredToRestoreEmail}.");
+                return null;
+            }
+
+            const string softDeleteFolderName = "deleteditems";
+            const string hardDeleteFolderName = "recoverableitemsdeletions";
+
+            logger.LogInformation($"{Resource.InfoAttentingToRestoreEmail}.", messageId, userAccount, originalFolderName);
+
+            try
+            {
+                // DIAGNOSTIC: Uncomment the next line to log all folder names for the user.
+                // await DiscoverAllUserAccountFolderNamesAsync(userAccount);
+
+                var restoredMessage = await MoveEmailFromFolderAsync(userAccount, messageId, softDeleteFolderName, originalFolderName);
+                logger.LogInformation($"{Resource.InfoEmailRestoredSuccessfully}.", softDeleteFolderName);
+
+                return restoredMessage;
+            }
+            catch (ODataError odataError) when (odataError.Error?.Code == "ErrorItemNotFound")
+            {
+                logger.LogInformation($"{Resource.ErrorMessageIdNotFoundOnFolder}.", messageId, softDeleteFolderName);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorUnexpectedErrorWhileCheckingSource}.", softDeleteFolderName);
+            }
+
+            try
+            {
+                var restoredMessage = await MoveEmailFromFolderAsync(userAccount, messageId, hardDeleteFolderName, originalFolderName);
+
+                logger.LogInformation($"{Resource.InfoEmailRestoredSuccessfully}.", hardDeleteFolderName);
+                return restoredMessage;
+            }
+            catch (ODataError odataError) when (odataError.Error?.Code == "ErrorItemNotFound")
+            {
+                logger.LogWarning(odataError, $"{Resource.ErrorEmailNotFoundOnFolder}.", messageId, hardDeleteFolderName);
+                return null; 
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorUnexpectedErrorWhileCheckingSource}.", hardDeleteFolderName);
+                return null; 
+            }
+        }
+
+        /// <summary>
+        /// Private helper method that contains the core logic for moving a message from a source folder to a destination folder.
+        /// </summary>
+        public async Task<Message> MoveEmailFromFolderAsync(string userAccount, string messageId, string sourceFolder, string destinationFolder)
+        {
+            var requestBody = new Microsoft.Graph.Users.Item.MailFolders.Item.Messages.Item.Move.MovePostRequestBody
+            {
+                DestinationId = destinationFolder
+            };
+
+            // This single call performs the move and will throw an ODataError if the item is not found in the source folder.
+            var restoredMessage = await graphServiceClient
+                .Users[userAccount]
+                .MailFolders[sourceFolder]
+                .Messages[messageId]
+                .Move
+                .PostAsync(requestBody);
+
+            return restoredMessage;
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC METHOD: Retrieves and logs all the "well-known" mail folder names for a user.
+        /// This is used to find the exact name for folders like 'Recoverable Items'.
+        /// </summary>
+        /// <param name="userAccount">The User Principal Name of the user to inspect.</param>
+        public async Task DiscoverAllUserAccountFolderNamesAsync(string userAccount)
+        {
+            if (string.IsNullOrWhiteSpace(userAccount))
+            {
+                logger.LogError("Cannot discover folders: userAccount is required.");
+                return;
+            }
+
+            logger.LogInformation("--- Discovering all Folders for user: {User} ---", userAccount);
+
+            try
+            {
+                var mailFolders = await graphServiceClient
+                    .Users[userAccount]
+                    .MailFolders
+                    .GetAsync(requestConfiguration =>
+                    {
+                        requestConfiguration.QueryParameters.IncludeHiddenFolders = "true";
+                        requestConfiguration.QueryParameters.Select = new[] { "displayName", "id", "parentFolderId", "singleValueExtendedProperties", "MultiValueExtendedProperties" };
+                        requestConfiguration.QueryParameters.Top = 100;
+                    });
+
+                if (mailFolders?.Value == null)
+                {
+                    logger.LogWarning("Could not retrieve any mail folders for user {User}.", userAccount);
+                    return;
+                }
+
+                foreach (var folder in mailFolders.Value)
+                {
+                    if (!string.IsNullOrWhiteSpace(folder.DisplayName))
+                    {
+                        logger.LogInformation("Found Folder -> Display Name: '{DisplayName}', API Name (Id): '{Id}'",
+                            folder.DisplayName,
+                            folder.Id);
+
+                        var childFoldersPage = await graphServiceClient
+                            .Users[userAccount]
+                            .MailFolders[folder.Id]
+                            .ChildFolders
+                            .GetAsync(requestConfiguration =>
+                            {
+                                requestConfiguration.QueryParameters.IncludeHiddenFolders = "true";
+                                requestConfiguration.QueryParameters.Select = new[]
+                                {
+                                    "id",
+                                    "displayName",
+                                    "parentFolderId",
+                                    "childFolderCount"
+                                };
+                                requestConfiguration.QueryParameters.Top = 100;
+                            });
+
+                        if (childFoldersPage?.Value?.Count > 0)
+                        {
+                            foreach (var child in childFoldersPage.Value)
+                            {
+                                logger.LogInformation("Found a Child Folder -> Display Name: '{DisplayName}', API Name (Id): '{Id}'",
+                                child.DisplayName,
+                                child.Id);
+                            }
+                        }
+                    }
+                }
+                logger.LogInformation("--- Discovery Complete ---");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred during folder discovery for user {User}.", userAccount);
+            }
+        }
+
+        /// <summary>
+        /// Moves a DriveItem to the application's hidden quarantine folder within the same drive.
+        /// This acts as a soft delete.
+        /// </summary>
+        /// <param name="driveId">The ID of the drive containing the item.</param>
+        /// <param name="documentId">The ID of the DriveItem to move.</param>
+        /// <returns>The moved DriveItem if successful, otherwise null.</returns>
+        public async Task<DriveItem?> MoveDriveItemToQuarantineAsync(string driveId, string documentId)
+        {
+            var quarantineFolder = await EnsureDriveQuarantineFolderAsync(driveId);
+            if (quarantineFolder?.Id == null)
+            {
+                logger.LogError($"{Resource.ErrorCannotMoveItemCauseFolderNotFound}.", driveId);
+                return null;
+            }
+
+            try
+            {
+                var requestBody = new DriveItem
+                {
+                    ParentReference = new ItemReference
+                    {
+                        Id = quarantineFolder.Id
+                    }
+                };
+
+                var movedItem = await graphServiceClient
+                    .Drives[driveId]
+                    .Items[documentId]
+                    .PatchAsync(requestBody);
+
+                logger.LogInformation($"{Resource.InfoItemMovedSuccessfullyToQuarantine}.", documentId);
+                return movedItem;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorFailedToMoveDriveItem}.", documentId);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Restores a DriveItem from the application's quarantine folder back to its original location.
+        /// </summary>
+        /// <param name="driveId">The ID of the drive containing the item.</param>
+        /// <param name="documentId">The ID of the DriveItem to restore (as it exists in the quarantine folder).</param>
+        /// <param name="originalParentFolderId">
+        /// The ID of the folder where the item should be restored to.
+        /// This MUST be retrieved from your database and stored during the initial scan.
+        /// Use "root" to restore to the drive's root directory.
+        /// </param>
+        /// <returns>The restored DriveItem if successful, otherwise null.</returns>
+        public async Task<DriveItem?> RestoreDriveItemFromQuarantineAsync(string driveId, string documentId, string originalParentFolderId)
+        {
+            if (string.IsNullOrWhiteSpace(driveId) || string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(originalParentFolderId))
+            {
+                logger.LogError($"{Resource.ErrorMandatoryParametersAreMissingForDriveItem}.");
+                return null;
+            }
+
+            logger.LogInformation($"{Resource.InfoAttemptingToRestoreDriveItem}.",documentId, driveId, originalParentFolderId);
+
+            try
+            {
+                // To restore, we simply update the item's ParentReference to point back
+                // to its original parent folder ID.
+                var requestBody = new DriveItem
+                {
+                    ParentReference = new ItemReference
+                    {
+                        Id = originalParentFolderId
+                    }
+                };
+
+                // This is the exact same API call as the move *to* quarantine, just with a different target parent.
+                var restoredItem = await graphServiceClient
+                    .Drives[driveId]
+                    .Items[documentId]
+                    .PatchAsync(requestBody);
+
+                logger.LogInformation($"{Resource.InfoItemRestoredSucessfully}.", documentId);
+                return restoredItem;
+            }
+            catch (ODataError odataError)
+            {
+                // This will catch common errors, such as:
+                // - "itemNotFound" if the documentId is wrong.
+                // - "itemNotFound" if the originalParentFolderId no longer exists.
+                // - "accessDenied" if permissions have changed.
+                logger.LogError(odataError, $"{Resource.GraphApiErrorWhileRestoringDriveItem}.", documentId, odataError.Error?.Code, odataError.Error?.Message);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorUnexpectedRestoringDocument}.", documentId);
+                return null;
+            }
+        }
+
+        public async Task<string?> GetExchangeParentFolderIdFromMessageId(string userAccount, string messageId)
+        {
+            try
+            {
+                var message = await graphServiceClient
+                    .Users[userAccount]
+                    .Messages[messageId]
+                    .GetAsync();
+
+                return message.ParentFolderId;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorUnexpectedErrorFoundGettingMessage}.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Moves an email to the application's hidden quarantine folder. This acts as a soft delete.
+        /// </summary>
+        /// <param name="userAccount">The user's account identifier.</param>
+        /// <param name="messageId">The ID of the message to move.</param>
+        /// <returns>The moved Message object if successful, otherwise null.</returns>
+        public async Task<Message?> MoveEmailToQuarantineAsync(string userAccount, string messageId)
+        {
+            var quarantineFolder = await EnsureExchangeQuarantineFolderAsync(userAccount);
+            if (quarantineFolder?.Id == null)
+            {
+                logger.LogError($"{Resource.ErrorCannotMoveEmailToQuarantine}.", userAccount);
+                return null;
+            }
+
+            try
+            {
+                var requestBody = new Microsoft.Graph.Users.Item.Messages.Item.Move.MovePostRequestBody
+                {
+                    DestinationId = quarantineFolder.Id
+                };
+
+                
+                var movedMessage = await graphServiceClient
+                    .Users[userAccount]
+                    .Messages[messageId]
+                    .Move
+                    .PostAsync(requestBody);
+
+                logger.LogInformation($"{Resource.InfoMessageMovedSuccessfullyToQuarantine}.", messageId, userAccount);
+                return movedMessage;
+            }
+            catch (ODataError odataError)
+            {
+                logger.LogError(odataError, $"{Resource.ErrorGraphApiErrorMovingMessage}", messageId, odataError.Error?.Code, odataError.Error?.Message);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorFailedToMoveMessage}.", messageId);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Restores an email from the quarantine folder back to a specified destination folder (its original location).
+        /// </summary>
+        /// <param name="userAccount">The user's account identifier.</param>
+        /// <param name="messageId">The ID of the message to restore.</param>
+        /// <param name="originalParentFolderId">
+        /// The ID of the mail folder where the email should be restored to.
+        /// This MUST be retrieved from your database and stored when the email was first processed.
+        /// You can also use well-known names like "inbox" or "sentitems".
+        /// </param>
+        /// <returns>The restored Message object if successful, otherwise null.</returns>
+        public async Task<Message?> RestoreEmailFromQuarantineAsync(string userAccount, string messageId, string originalParentFolderId)
+        {
+            if (string.IsNullOrWhiteSpace(originalParentFolderId))
+            {
+                logger.LogError($"{Resource.ErrorMissingParentFolderIdOnRestore}.", messageId);
+                return null;
+            }
+
+            var quarantineFolder = await EnsureExchangeQuarantineFolderAsync(userAccount);
+            if (quarantineFolder?.Id == null)
+            {
+                logger.LogError($"{Resource.ErrorQuarantineFolderNotFoundOnRestore}.", userAccount);
+                return null;
+            }
+
+            try
+            {
+                var requestBody = new Microsoft.Graph.Users.Item.MailFolders.Item.Messages.Item.Move.MovePostRequestBody
+                {
+                    DestinationId = originalParentFolderId
+                };
+
+                var restoredMessage = await graphServiceClient
+                    .Users[userAccount]
+                    .MailFolders[quarantineFolder.Id]
+                    .Messages[messageId]
+                    .Move
+                    .PostAsync(requestBody);
+
+                logger.LogInformation($"{Resource.InfoSuccessfullyRestoredMessage}.", messageId, originalParentFolderId);
+                return restoredMessage;
+            }
+            catch (ODataError odataError)
+            {
+                logger.LogError(odataError, $"{Resource.ErrorGraphApiErrorWhileRestoringMessage}",messageId, odataError.Error?.Code, odataError.Error?.Message);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorFailedToRestoreMessage}.", messageId);
+                return null;
+            }
         }
 
         /// <summary>
@@ -2362,6 +2907,143 @@ namespace Coginov.GraphApi.Library.Services
             catch
             {
                 //Invalid token format
+                return null;
+            }
+        }
+
+        private async Task<DriveItem?> EnsureDriveQuarantineFolderAsync(string driveId, string folderName = ".app-quarantine")
+        {
+            try
+            {
+                // Try to get the folder directly by its path
+                var quarantineFolder = await graphServiceClient
+                    .Drives[driveId]
+                    .Root
+                    .ItemWithPath(folderName)
+                    .GetAsync();
+
+                logger.LogInformation($"{Resource.InfoFoundExistingQuarantineFolder}.", folderName, driveId);
+                return quarantineFolder;
+            }
+            catch (ODataError ex) when (ex.Error?.Code == "itemNotFound")
+            {
+                logger.LogInformation($"{Resource.InfoQuarantineFolderNotFound}.");
+
+                try
+                {
+                    // Create the quarantine folder
+                    var folderToCreate = new DriveItem
+                    {
+                        Name = folderName,
+                        Folder = new Folder(),
+                        AdditionalData = new Dictionary<string, object>
+                        {
+                            { "@microsoft.graph.conflictBehavior", "fail" }
+                        }
+                    };
+
+                    var createdFolder = await graphServiceClient
+                        .Drives[driveId]
+                        .Items["root"]
+                        .Children
+                        .PostAsync(folderToCreate);
+
+                    // List all permissions
+                    var permissions = await graphServiceClient
+                        .Drives[driveId]
+                        .Items[createdFolder.Id]
+                        .Permissions
+                        .GetAsync();
+
+                    if (permissions?.Value != null)
+                    {
+                        foreach (var perm in permissions.Value)
+                        {
+                            // Delete all inherited permissions except admin ones
+                            if (!string.IsNullOrEmpty(perm.Id))
+                            {
+                                await graphServiceClient
+                                    .Drives[driveId]
+                                    .Items[createdFolder.Id]
+                                    .Permissions[perm.Id]
+                                    .DeleteAsync();
+                            }
+                        }
+                    }
+
+                    logger.LogInformation($"{Resource.InfoQuarantineFolderCreatedSucessfully}.", folderName);
+                    return createdFolder;
+                }
+                catch (Exception innerEx)
+                {
+                    logger.LogError($"{Resource.ErrorFailedToCreateQuarantineFolder}", innerEx);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"{Resource.ErrorUnexpectedEnsuringFolder}", ex);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Ensures a hidden mail folder exists for quarantine at the root of a user's mailbox, creating it if necessary.
+        /// </summary>
+        /// <param name="userAccount">The user's account identifier (UPN or ID).</param>
+        /// <param name="folderName">The name of the hidden folder (e.g., "_app-quarantine").</param>
+        /// <returns>The MailFolder object for the quarantine folder, or null on failure.</returns>
+        private async Task<MailFolder?> EnsureExchangeQuarantineFolderAsync(string userAccount, string folderName = "_app-quarantine")
+        {
+            // The 'msgfolderroot' is the well-known name for the absolute root of the mailbox,
+            // which is the parent of top-level folders like Inbox.
+            const string parentFolderId = "msgfolderroot";
+
+            try
+            {
+                // First, try to find an existing folder with the specified name.
+                // We must search for it as a child of the mailbox root.
+                var childFolders = await graphServiceClient
+                    .Users[userAccount]
+                    .MailFolders[parentFolderId]
+                    .ChildFolders
+                    .GetAsync(config =>
+                    {
+                        // We use an OData filter to find our specific folder by its display name.
+                        config.QueryParameters.Filter = $"displayName eq '{folderName}'";
+
+                        // Crucially, we must include hidden folders in our search.
+                        config.QueryParameters.IncludeHiddenFolders = "true";
+                    });
+
+                var existingFolder = childFolders?.Value?.FirstOrDefault();
+                if (existingFolder != null)
+                {
+                    logger.LogInformation($"{Resource.InfoFoundExistingQuarantineMailFolder}.", folderName, userAccount);
+                    return existingFolder;
+                }
+
+                // If not found, create it.
+                logger.LogInformation($"{Resource.InfoQuarantineMailFolderNotFound}.", folderName, userAccount);
+
+                var folderToCreate = new MailFolder
+                {
+                    DisplayName = folderName,
+                    IsHidden = true
+                };
+
+                var createdFolder = await graphServiceClient
+                    .Users[userAccount]
+                    .MailFolders[parentFolderId]
+                    .ChildFolders
+                    .PostAsync(folderToCreate);
+
+                logger.LogInformation($"{Resource.InfoSuccessfullyCreatedHiddenMailFolder}.");
+                return createdFolder;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Resource.ErrorFailedToEnsureQuarantineFolderExists}.", userAccount);
                 return null;
             }
         }
