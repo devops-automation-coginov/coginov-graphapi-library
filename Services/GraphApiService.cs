@@ -2916,14 +2916,55 @@ namespace Coginov.GraphApi.Library.Services
             try
             {
                 // Try to get the folder directly by its path
-                var quarantineFolder = await graphServiceClient
+                var appRoot = await graphServiceClient
                     .Drives[driveId]
-                    .Root
-                    .ItemWithPath(folderName)
+                    .Special["approot"]
                     .GetAsync();
 
-                logger.LogInformation($"{Resource.InfoFoundExistingQuarantineFolder}.", folderName, driveId);
-                return quarantineFolder;
+                if (appRoot?.Id == null)
+                {
+                    logger.LogError($"{Resource.ErrorFailedToAccessAppRoot}.");
+                    return null;
+                }
+
+                // Try to get the quarantine folder within approot by listing children
+                var children = await graphServiceClient
+                    .Drives[driveId]
+                    .Items[appRoot.Id]
+                    .Children
+                    .GetAsync(requestConfiguration =>
+                    {
+                        requestConfiguration.QueryParameters.Filter = $"name eq '{folderName}'";
+                    });
+
+                var quarantineFolder = children?.Value?.FirstOrDefault();
+                if (quarantineFolder != null)
+                {
+                    logger.LogInformation($"{Resource.InfoFoundExistingQuarantineFolder}.", folderName, driveId);
+                    return quarantineFolder;
+                }
+
+                // If not found, create it
+                logger.LogInformation($"{Resource.InfoQuarantineFolderNotFound}.");
+
+                var folderToCreate = new DriveItem
+                {
+                    Name = folderName,
+                    Folder = new Folder(),
+                    AdditionalData = new Dictionary<string, object>
+                    {
+                        { "@microsoft.graph.conflictBehavior", "fail" }
+                    }
+                };
+
+                var createdFolder = await graphServiceClient
+                    .Drives[driveId]
+                    .Items[appRoot.Id]
+                    .Children
+                    .PostAsync(folderToCreate);
+
+                logger.LogInformation($"{Resource.InfoQuarantineFolderCreatedSucessfully}.", folderName);
+                return createdFolder;
             }
             catch (ODataError ex) when (ex.Error?.Code == "itemNotFound")
             {
