@@ -223,6 +223,15 @@ namespace Coginov.GraphApi.Library {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Failed to access the application&apos;s private storage area (approot) for the drive.
+        /// </summary>
+        internal static string ErrorFailedToAccessAppRoot {
+            get {
+                return ResourceManager.GetString("ErrorFailedToAccessAppRoot", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Failed to create quarantine folder: {InnerEx}.
         /// </summary>
         internal static string ErrorFailedToCreateQuarantineFolder {
